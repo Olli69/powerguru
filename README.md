@@ -1,11 +1,11 @@
 
 ## Concept
-Main program powerguru.py run function doWork and does following once in a minute (parameter READ_INTERVAL) in 
+Main program powerguru.py runs function doWork and does following once in a minute (parameter READ_INTERVAL) in 
 1. reads ModBus capable electic meter and temperature sensors .
 2. Insert new values to InfluxDB
 3. Checks which conditions are valid in that moment. Multiple conditions can be valid at the same time,
-4. Searches targets of each actuator in order. target {"condition" : "sun", "sensor" : "b2out", "valueabove": 80} mean that if sun (net sales) condition is true, sensor b2out target value if 80 C. If condition "sun" is true but sensor "b2out" temperature is below 80 then the system tries to switch on more lines (if possible). If temperature is above 80, it can switch of all the lines (of that actuator)
-5. do actual switching with lineResource.setLoad
+4. Searches targets of each actuator in order. E.g. target {"condition" : "sun", "sensor" : "b2out", "valueabove": 80} means that if sun (net sales) condition is true, sensor b2out target value if 80 C. If condition "sun" is true but sensor "b2out" temperature is below 80 then the system tries to switch on more lines (if possible). If temperature is above 80, it can switch of the lines (of that actuator).
+5. Does actual switching with lineResource.setLoad . This function can also switch of the lines if there is too much load on a phase.
 ### Conditions
 At any time multiple conditions can be effective. Conditions are enabled based on one or more criterias, which should be fulfilled:
 - current time, criteria defined with starttime (e.g. "04:00:00") and endtime (e.g. "07:00:00)
