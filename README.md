@@ -1,4 +1,6 @@
-Powerguru manages electric loads (especially 1 or 3 phase water heaters). It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "conditions", which are enabled if all the criterias for the condition match.  Powerguru is tested with Raspberry Pi (2)
+Powerguru manages electric loads (especially 1 or 3 phase water heaters). It can heat up the boilers when then electricity is cheap, for example when you have excess solar power or nightime. It can also optimize water heating using solar energy forecast (http://www.bcdcenergia.fi/ for forecast in Finland).  
+
+It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "conditions", which are enabled if all the criterias for the condition match.  Powerguru is tested with Raspberry Pi (2)
 
 ## Concept
 Main program powerguru.py runs function doWork and does following once in a minute (parameter READ_INTERVAL) in 
