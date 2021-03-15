@@ -1,8 +1,9 @@
-Suomeksi/In Finnish
+## A few words in Finnish
 Mikäli olet kiinnostunut saamaan lisätietoa tästä voit lähettää tekijälle sähköpostia olli@rinne.fi. Keskustelua voisi tietysti käydä myös FB:n Aurinkoenergia-ryhmässä, josta ajatus tämän julkaisusta tuli. Voit myös halutessassi avata issuen suomeksi. Käytännön syistä dokumentaatio on kuitenkin ainakin toistaiseksi vain englanniksi.
 
 Ohjelma getfcstandprices.py hakee paikallisen aurinkoenergiaennusteen ja Nordpoolin day-ahead SPOT-tuntihinnat (vaatii ilmaisen API-avaimen). SPOT-hintoja ei vielä käytetä ohjauksessa, mutta ominaisuus on melko helppo lisätä ja tekijä mielellään on mukana tässä. Käytännössä hintaohjauksen voisi tehdä lisäämällä esimerkiksi ehtokriteereihin (laajentamalla funtiota check_conditions ) totuusarvomuuttujat  (boolean) spotlow5 (true, jos kuluva tunti kuuluu 5 halvimman tunnin joukkoon), jne.spotlow10, spothigh10, spothigh5 . Ehtoihin voisi tietysti myös lisätä myös absoluuttiseen hintaan viittaavat spotpricebelow and spotpriceabove-attribuutit, jolloin esim. "spotpricebelow" : 3.0 on voimassa kun SPOT-hinta on alle 3 c/kWh. jne .
 
+## Idea
 Powerguru manages electric loads (especially 1 or 3 phase water heaters). It can heat up the boilers when then electricity is cheap, for example when you have excess solar power or nightime. It can also optimize water heating using solar energy forecast (http://www.bcdcenergia.fi/ for forecast in Finland). Current version can read RS485/Modbus enables electric meters and DS18B20 temperatare sensors. It can also fetch Nordpool day-ahead spot prices. 
 
 It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "conditions", which are enabled if all the criterias for the condition match.   Powerguru is tested with Raspberry Pi (2)
