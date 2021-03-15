@@ -55,15 +55,13 @@ GPIOs are defined in actuators in the file settings.py. 3-phase heater uses 3 GP
     
 #### Electricity meter reading with Modbus
 
-
-     RPi UART_TXD  --------   RX               ---D+----
-     RPi UART_RXD  --------   TX    MAX3485    ---D1----    Carlo Gavazzi EM340 (leave to an electrician!)
-     RPi GPIO17    --------   RE               ---GND---
-     RPi GPIO27    --------   DE
-Please note that the pin ids were taken from the web https://www.industrialshields.com/blog/arduino-industrial-1/post/how-to-communicate-raspberry-pi-3-b-with-a-max485-module-137 , not the real system. Should be the same, but was not verified during documentation.    
-
+     RPi GPIO14 (TXD)  --------   RX               ---D+----
+     RPi GPIO15 (RXD)  --------   TX    MAX3485    ---D1----    Carlo Gavazzi EM340 (leave to an electrician!)
+     RPi 3.3V.         --------   VCC              ---GND---
+     RPi GND           --------   GND
      
-   
+ 
+     
     
 DS18B20 sensors are wired and terminated (see one-wire wiring) and how to enable one-wire https://pinout.xyz/pinout/1_wire.  Each sensor is identified by unique id and you can get recognized sensor id:s with command: `ls /sys/bus/w1/devices/`. In the beginning  all available sensors are searched in function find_thermometers and mapped to sensor codes defined in _sensors_ list defined in _settings.py_ .
 
