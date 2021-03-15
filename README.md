@@ -48,12 +48,14 @@ sudo -H pip3 install pytz
 GPIOs are defined in actuators in the file settings.py. 3-phase heater uses 3 GPIOs if you want to control lines individually. In the pilot installation GPIOs draw SSR switches, which are connected to AC relays. (Maybe a LN2003 drawing a DC connector could be simpler.)
 
 #### Wiring to a boiler, 3 phase boler has 3 of these
+GPIO numbers are defined in _actuators_ list in file _settings.py_ .
 
     RPi GPIO  -------- 
                       SSR switch -------- AC switch  (leave to an electrician!)-------   Boiler
     RPi GND   -------- 
     
 #### Electricity meter reading with Modbus
+Use raspi-config to disable serial console and enable serial port.
 
      RPi GPIO14 (TXD)  --------   RX               ---D+----
      RPi GPIO15 (RXD)  --------   TX    MAX3485    ---D1----    Carlo Gavazzi EM340 (leave to an electrician!)
