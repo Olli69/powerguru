@@ -65,7 +65,15 @@ Please note that the pin ids were taken from the web https://www.industrialshiel
      
    
     
-DS18B20 sensors are wired and terminated (see one-wire wiring) and how to enable one-wire https://www.waveshare.com/wiki/Raspberry_Pi_Tutorial_Series:_1-Wire_DS18B20_Sensor.  Each sensor is identified by unique id. In the beginning all available sensors are searched in function find_thermometers and mapped to sensor codes defined in _sensors_ list defined in _settings.py_ .
+DS18B20 sensors are wired and terminated (see one-wire wiring) and how to enable one-wire https://pinout.xyz/pinout/1_wire.  Each sensor is identified by unique id and you can get recognized sensor id:s with command: `ls /sys/bus/w1/devices/`. In the beginning  all available sensors are searched in function find_thermometers and mapped to sensor codes defined in _sensors_ list defined in _settings.py_ .
+
+    RPi GPIO 4 ----------------          --------          --- ... -----
+                    |
+                 4.7k ohm pull-up
+                    |
+    RPi 3V3    ----------------  DS18B20 --------  DS18B20 --- ... -----
+    
+    RPi GND    ----------------          --------          --- ... -----
 
 Sensors should be bind to warmest part of the pipeline (outside), so that it get as hot as possible (may silicon paste and insulation outside could help). Anyway keep in minds that sensor values will be lower than real water temperature.  See mounting example https://www.openheating.org/doc/faschingbauer/thermometers.html 
 
