@@ -41,7 +41,7 @@ sudo -H pip3 install pytz
 .... all the other required libraries,
 
 ### Wiring
-There should be more documentation... Anyway GPIOs are defined in actuators (3 phase heater has 3 GPIOs). In the pilot installation GPIOs draw SSR switches, which are connected to AC relays. (Maybe a LN2003 drawing DC connector could be simpler)
+GPIOs are defined in actuators in the file settings.py. 3-phase heater uses 3 GPIOs if you want to control lines individually. In the pilot installation GPIOs draw SSR switches, which are connected to AC relays. (Maybe a LN2003 drawing a DC connector could be simpler.)
 
 #### Wiring to a boiler, 3 phase boler has 3 of these
 
@@ -56,7 +56,7 @@ There should be more documentation... Anyway GPIOs are defined in actuators (3 p
      RPi UART_RXD  --------   TX    MAX3485    ---D1----    Carlo Gavazzi EM340 (leave to an electrician!)
      RPi GPIO17    --------   RE               ---GND---
      RPi GPIO27    --------   DE
-Please note that the pin ids were taken from the web https://www.industrialshields.com/blog/arduino-industrial-1/post/how-to-communicate-raspberry-pi-3-b-with-a-max485-module-137 , not the real system. Should be the same, not not verified during documentation.    
+Please note that the pin ids were taken from the web https://www.industrialshields.com/blog/arduino-industrial-1/post/how-to-communicate-raspberry-pi-3-b-with-a-max485-module-137 , not the real system. Should be the same, but was not verified during documentation.    
 
      
     
