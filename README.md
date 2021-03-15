@@ -33,7 +33,7 @@ Currently only DS18B20 1-wire temperature sensors are supported. Sensors are ide
 * getfcstandprices.py - reads NordPool prices and BCDC solar forecast. You can schedule it with crontab, e.g. once in 4 hours:15 */4 * * * /usr/bin/python3.7 /home/pi/powerguru/getfcstandprices.py
  
 
-### Required components
+### Required Python components
 
 sudo apt install python3-pip
 sudo -H pip3 install pytz
@@ -46,10 +46,19 @@ There should be more documentation... Anyway GPIOs are defined in actuators (3 p
 #### Wiring to a boiler, 3 phase boler has 3 of these
 
     RPi GPIO  -------- 
-                      SSR switch -------- AC switch  (leave to a electrician!)-------   Boiler
+                      SSR switch -------- AC switch  (leave to an electrician!)-------   Boiler
     RPi GND   -------- 
     
-    
+#### Electricity meter reading with Modbus
+
+
+     RPi UART_TXD  --------   RX               ---D+----
+     RPi UART_RXD  --------   TX    MAX3485    ---D1----    Carlo Gavazzi EM340 (leave to an electrician!)
+     RPi GPIO17    --------   RE               ---GND---
+     RPi GPIO27    --------   DE
+Please note that the pin ids were taken from the web https://www.industrialshields.com/blog/arduino-industrial-1/post/how-to-communicate-raspberry-pi-3-b-with-a-max485-module-137 , not the real system. Should be the same, not not verified during documentation.    
+
+     
     
     
 DS18B20 sensors are wired and terminated (see 1-wire wiring). Sensors should be bind to warmest part of the pipeline (outside), so that it get as hot as possible (may silicon paste and insulation outside could help). Anyway keep in minds that sensor values will be lower than real water temperature.  See mounting example https://www.openheating.org/doc/faschingbauer/thermometers.html 
