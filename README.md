@@ -43,12 +43,15 @@ sudo -H pip3 install pytz
 ### Wiring
 There should be more documentation... Anyway GPIOs are defined in actuators (3 phase heater has 3 GPIOs). In the pilot installation GPIOs draw SSR switches, which are connected to AC relays. (Maybe a LN2003 drawing DC connector could be simpler)
 
-    RPi GPIO.  --------
-    
-    RPi GPiO.  -------- 
-    
-    RPi GPiO.  --------
+#### Wiring to a boiler, 3 phase boler has 3 of these
 
+    RPi GPIO  -------- 
+                      SSR switch -------- AC switch  (leave to a electrician!)-------   Boiler
+    GND   -------- 
+    
+    
+    
+    
 DS18B20 sensors are wired and terminated (see 1-wire wiring). Sensors should be bind to warmest part of the pipeline (outside), so that it get as hot as possible (may silicon paste and insulation outside could help). Anyway keep in minds that sensor values will be lower than real water temperature.  See mounting example https://www.openheating.org/doc/faschingbauer/thermometers.html 
 
 ## Credits
