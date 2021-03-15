@@ -47,7 +47,7 @@ There should be more documentation... Anyway GPIOs are defined in actuators (3 p
 
     RPi GPIO  -------- 
                       SSR switch -------- AC switch  (leave to a electrician!)-------   Boiler
-    GND   -------- 
+    RPi GND   -------- 
     
     
     
