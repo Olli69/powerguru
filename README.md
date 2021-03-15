@@ -63,9 +63,13 @@ GPIOs are defined in actuators in the file settings.py. 3-phase heater uses 3 GP
 Please note that the pin ids were taken from the web https://www.industrialshields.com/blog/arduino-industrial-1/post/how-to-communicate-raspberry-pi-3-b-with-a-max485-module-137 , not the real system. Should be the same, but was not verified during documentation.    
 
      
+   
     
-    
-DS18B20 sensors are wired and terminated (see 1-wire wiring). Sensors should be bind to warmest part of the pipeline (outside), so that it get as hot as possible (may silicon paste and insulation outside could help). Anyway keep in minds that sensor values will be lower than real water temperature.  See mounting example https://www.openheating.org/doc/faschingbauer/thermometers.html 
+DS18B20 sensors are wired and terminated (see one-wire wiring) and how to enable one-wire https://www.waveshare.com/wiki/Raspberry_Pi_Tutorial_Series:_1-Wire_DS18B20_Sensor.  Each sensor is identified by unique id. In the beginning all available sensors are searched in function find_thermometers and mapped to sensor codes defined in _sensors_ list defined in _settings.py_ .
+
+Sensors should be bind to warmest part of the pipeline (outside), so that it get as hot as possible (may silicon paste and insulation outside could help). Anyway keep in minds that sensor values will be lower than real water temperature.  See mounting example https://www.openheating.org/doc/faschingbauer/thermometers.html 
+
+
 
 ## Credits
 If try to check out where the ModBus code was copied from...
