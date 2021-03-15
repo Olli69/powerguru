@@ -17,9 +17,10 @@ Main program powerguru.py runs function doWork and does following once in a minu
 5. Does actual switching with lineResource.setLoad . This function can also switch of the lines if there is too much load on a phase.
 ### Conditions
 At any time multiple conditions can be effective. Conditions are enabled based on one or more criterias, which should be fulfilled:
-- current time, criteria defined with starttime (e.g. "04:00:00") and endtime (e.g. "07:00:00)
-- current date, defined with parameters dayfirst and daylast (e.g. "02-15" is February 15)
-- solar forecast, e.g. "solar12above": 5.0 means that expected cumulative solar power within next 12 h should be 5kWh or more (with 1 kWp panels)
+- current time, criteria defined with _starttime_ (e.g. "04:00:00") and _endtime_ (e.g. "07:00:00)
+- current date, defined with parameters _dayfirst_ and _daylast_  -  format MM-DD,  e.g. "02-15" is February 15
+- solar forecast, attributes _solar12above_ and  _solar12below_ are defined. _"solar12above" : 5.0_ means that expected cumulative solar power within next 12 h should be 5kWh or more (with 1 kWp panels)
+- in the future there could be criterias for price-based selection, e.g. _spotpricebelow_
 Condition parameter are defined in settings.py file.
 ### Actuators
 Currently only (1 or 3 line) boilers/heaters are supported. Actuator defines GPIOs of all phases (1 or 3) and target values (temperatures) in different conditions. Targets are tested in order and first matching target is used. Actuators are defined in settings.py file.
