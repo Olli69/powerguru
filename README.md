@@ -58,7 +58,7 @@ GPIO numbers are defined in _actuators_ list in file _settings.py_ .
 Use raspi-config to disable serial console and enable serial port.
 
      RPi GPIO14 (TXD)  --------   RX               ---D+----
-     RPi GPIO15 (RXD)  --------   TX    MAX3485    ---D1----    Carlo Gavazzi EM340 (leave to an electrician!)
+     RPi GPIO15 (RXD)  --------   TX    MAX3485    ---D1----    Carlo Gavazzi EM340 RS(leave to an electrician!)
      RPi 3.3V.         --------   VCC              ---GND---
      RPi GND           --------   GND
      
