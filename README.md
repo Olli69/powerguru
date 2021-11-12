@@ -41,6 +41,10 @@ Currently only DS18B20 1-wire temperature sensors are supported. Sensors are ide
 
 sudo apt install python3-pip
 sudo -H pip3 install pytz
+sudo -H pip3 install python-dateutil
+sudo -H pip3 install twisted
+sudo -H pip3 install pymodbus
+sudo -H pip3 install influxdb
 
 .... all the other required libraries,
 
