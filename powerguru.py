@@ -64,6 +64,12 @@ client_modbus = None
 pricesAndForecast = None
 lastPriceHour = -1
 
+previousTotalEnergyHour = -999
+previousTotalEnergy = -1
+hourMeasurementCount = 0
+hourCumulativeEnergyPurchase = 0
+
+
 tz_local = pytz.timezone(s.timeZoneLocal)
 
 # global variables
@@ -387,6 +393,7 @@ def sig_handler(signum, frame):
 def check_conditions(importTot):
   #  global s.conditions
     ok_conditions = []
+    global hourCumulativeEnergyPurchase
     # get the standard UTC time  
    
 
@@ -408,8 +415,13 @@ def check_conditions(importTot):
         condition = s.conditions[key]
         
         if "netsales" in condition.keys(): # check netsales condition
-            if condition["netsales"] and importTot> -s.basicInfo["netSalesMaxExportkW"]: 
-                ok = False
+            if condition["netsales"]:
+                if s.basicInfo["hourNetting"] and hourCumulativeEnergyPurchase> 0: #netpurchase
+                    ok = False
+                elif (not s.basicInfo["hourNetting"]) and importTot> -s.basicInfo["netSalesMaxExportkW"]:
+                    ok = False
+    
+                
                 
         if ok and "starttime" in condition.keys() and "endtime" in condition.keys(): # check time
             if condition["starttime"] > condition["endtime"]: # assume condition reaches over midnight
@@ -488,6 +500,7 @@ def doWork():
     global imports, importTot 
     global lineResource
     global pricesAndForecast,lastPriceHour
+    global previousTotalEnergyHour, previousTotalEnergy,hourCumulativeEnergyPurchase, hourMeasurementCount
   
     mbus_read_ok = True 
     try:
@@ -589,7 +602,28 @@ def doWork():
                     storep[ "cost"] = importTot*pricesAndForecast["totalPrice"]/100000
                 else:
                     storep[ "cost"] = importTot*(pricesAndForecast["energyPriceSpot"]-s.spotMarginSales)/100000
+            
+            if data_point["idx"] == 29: #Total cumulative
+                
+                cumulativeEnergy = res[data_point["idx"]]/data_point["factor"]
+                
+                if previousTotalEnergy == -1: #first measurement after init
+                    previousTotalEnergy = cumulativeEnergy
                     
+                if previousTotalEnergyHour != dtnow.hour-1: #first measurement within hour
+                    # TODO: could get exact number from the DB
+                    previousTotalEnergyHour = dtnow.hour-1
+                    hourMeasurementCount = 0
+                 
+                
+                hourCumulativeEnergyPurchase = cumulativeEnergy-previousTotalEnergy
+                storep["hourCumulativeEnergyPurchase"]= hourCumulativeEnergyPurchase               
+                hourMeasurementCount +=1
+                
+                if hourMeasurementCount==1: #first measurement of hour, init cumulative
+                    previousTotalEnergy = cumulativeEnergy
+                
+            
             if data_point["enabled"]==1:
                 #print ("%s: %.2f %s " % (data_point["desc"],res[data_point["idx"]]/data_point["factor"], data_point["unit"]))
                 storep[ data_point["desc"].replace(" ","")]= res[data_point["idx"]]/data_point["factor"]
@@ -702,4 +736,5 @@ def main(argv):
 
 if __name__ == "__main__":
     main(sys.argv[1:])
+    
     
