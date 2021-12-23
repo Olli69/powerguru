@@ -1,0 +1,56 @@
+{
+	"c1": {
+		"gpio": 16,
+		"actuator": "a1",
+		"A": 10,
+		"lines": [
+			1
+		]
+	},
+	"c2": {
+		"gpio": 6,
+		"actuator": "a1",
+		"A": 10,
+		"lines": [
+			2
+		]
+	},
+	"c3": {
+		"gpio": 5,
+		"actuator": "a1",
+		"A": 10,
+		"lines": [
+			3
+		]
+	},
+	"c4": {
+		"gpio": 25,
+		"actuator": "a2",
+		"A": 10,
+		"lines": [
+			1
+		]
+	},
+	"c5": {
+		"gpio": 24,
+		"actuator": "a2",
+		"A": 10,
+		"lines": [
+			2
+		]
+	},
+	"c6": {
+		"gpio": 23,
+		"actuator": "a2",
+		"A": 10,
+		"lines": [
+			3
+		]
+	},
+	"c7": {
+		"gpio": null,
+		"actuator": null,
+		"A": null,
+		"lines": []
+	}
+}

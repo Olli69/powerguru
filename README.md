@@ -39,13 +39,13 @@ Currently only DS18B20 1-wire temperature sensors are supported. Sensors are ide
 
 ### Required Python components
 
-sudo apt install python3-pip
-sudo -H pip3 install pytz
-sudo -H pip3 install python-dateutil
-sudo -H pip3 install twisted
-sudo -H pip3 install pymodbus
-sudo -H pip3 install influxdb
 
+todo: one line, updagrade
+sudo apt-get install libatlas-base-dev python3-pip
+
+sudo -H pip3 install pytz  python-dateutil twisted pymodbus influxdb entsoe-py
+
+ 
 .... all the other required libraries,
 
 ### Wiring

@@ -29,6 +29,7 @@ import json
 from datetime import datetime, timezone,date
 
 import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
+GPIO.setwarnings(False)
 
 #Twisted is an event-driven networking engine
 from twisted.internet import task
@@ -64,6 +65,12 @@ client_modbus = None
 pricesAndForecast = None
 lastPriceHour = -1
 
+previousTotalEnergyHour = -999
+previousTotalEnergy = -1
+hourMeasurementCount = 0
+hourCumulativeEnergyPurchase = 0
+
+
 tz_local = pytz.timezone(s.timeZoneLocal)
 
 # global variables
@@ -75,6 +82,60 @@ lineResource = None
 GPIO.setmode(GPIO.BCM)
 
 
+
+machineSettings = None #cached settings
+def readSettings(settings_filename=None):
+    global machineSettings
+    
+    if settings_filename is None:
+        isMachineSettings = True
+        settings_filename = "settings/{}.json".format(socket.gethostname())
+    else:
+        isMachineSettings = False
+        
+    print(settings_filename)
+    if os.path.exists(settings_filename):
+        f = open(settings_filename)
+        ls = json.load(f)
+        f.close()
+    else:      
+        ls = json.loads("{}") 
+        
+    if isMachineSettings:     
+        machineSettings = ls
+    return ls
+        
+def writeSettings(settings_filename,data):
+    with open(settings_filename, 'w') as outfile:
+        json.dump(data, outfile) 
+
+
+        
+def get_machine_value (key=None,defaulValue=""):
+    if machineSettings is None:
+       # print("LUETAAN machineSettings")
+        _ = readSettings()
+    #else:
+    #    print("EI LUETA machineSettings")
+    
+    return machineSettings.get(key,defaulValue)
+modbus_settings_filename =   "./settings/modbus.json"
+onewire_settings_filename =  "./settings/onewire.json"
+switches_settings_filename =  "./settings/switches.json"
+conditions_filename =  "./settings/conditions.json"
+channels_filename =  "./settings/channels.json"
+
+modbus_settings = None
+onewire_settings = None
+switches = None
+conditions = None
+channels = None
+
+
+#sensors_file_name = s.get_machine_value("sensors_file_name",s.sensors_file_name)    
+
+
+    
 
 # get current prices and expected future solar, e.g. solar6h is solar within next 6 hours
 def getPriceAndForecast(ifclient):
@@ -132,9 +193,14 @@ def getPriceAndForecast(ifclient):
             , "solar6h": solar6h, "solar12h": solar12h,"solar18h": solar18h, "solar24h" : solar24h}
 
 
-
-
-
+#helper for setting gpio
+def setOutGPIO(gpio,enable,init=False):
+    #enable: True ->GPIO.HIGH, False -> GPIO.LOW
+    if init:
+        GPIO.setup(gpio, GPIO.OUT)  
+    GPIO.output(gpio,GPIO.HIGH if enable else GPIO.LOW)
+    
+    
 # This class handles line resources (phases) e.g.
 class LineResource:
     def __init__(self):
@@ -164,19 +230,19 @@ class LineResource:
                     if line[0]==act_line.get("l",-1) and act_line["up"] and overLoad>0:
                         print("OVERLOAD, line {:d} lowering down, releasing {:d} A".format(line[0],act_line["A"] ))
                         act_line["up"]  = False
-                        GPIO.output(act_line["gpio"], GPIO.LOW)
+                        #GPIO.output(act_line["gpio"], GPIO.LOW)
+                        setOutGPIO(act_line["gpio"],True)
                         overLoad -= act_line["A"]
                         
-        self.lines_sorted = sorted(self.lines, key=lambda line: line[1]) 
+        self.lines_sorted = sorted(self.lines, key=lambda line: line[1])
         print("setLoad")
         pp.pprint(self.lines_sorted)
 
         return self.lines_sorted
     
-    def getLineCapacity(self): # antaa vähiten kuormitetuimmat linjat ekaksi
+    def getLineCapacity(self,reverse=False): # antaa vähiten kuormitetuimmat linjat ekaksi tai jos revrse niin toisin päin
         available_lines = []
-        for line in self.lines_sorted:
-            #if (line[1]+A)<s.basicInfo["maxLoadPerPhaseA"]:
+        for line in sorted(self.lines, key=lambda line: line[1],reverse=reverse):
             available_lines.append({"l" : line[0],"availableA":s.basicInfo["maxLoadPerPhaseA"]-line[1]})
         return available_lines #näitä voisi kuormittaa jos ei ole jo kuormitettu
                 
@@ -185,9 +251,19 @@ class SensorData:
     def __init__(self, sensors):
         self.sensors = []
         for sensor in sensors:
-            self.sensors.append({"code":sensor["code"],"type": sensor["type"],"id" : sensor["id"],"desc" :sensor.get("desc",""),"value":None })
-            
-        pp.pprint(self.sensors)   
+            #self.sensors.append({"code":sensor["code"],"type": sensor["type"],"id" : sensor["id"],"desc" :sensor.get("desc",""),"value":None, "enabled" : False })
+            self.addSensor(sensor["code"],sensor["id"], sensor.get("desc",""),False,sensor["type"])
+        #pp.pprint(self.sensors)  
+    def addSensor(self,code,id,desc,enabled,type = "1-wire"):
+        self.sensors.append({"code":code,"type": type,"id" : id,"desc" :desc,"value":None, "enabled" : enabled })
+
+    
+    def setEnabledById(self,id,enabled):    
+        for sensor in self.sensors:
+            if sensor["id"] == id:
+                sensor["enabled"]= enabled
+                return True
+        return False
          
     def setValueById(self,id,value):    
         for sensor in self.sensors:
@@ -207,30 +283,54 @@ class SensorData:
        
 # Actuator can be e.g. one boiler with 1 or 3 lines (phases)
 class Actuator:  
-    def __init__(self, code, data):
-        pp.pprint(code) 
+    def __init__(self, code, data,actuator_channels):
+        #pp.pprint(code) 
+        
+        
+       # [{'gpio': 16, 'actuator': 'a1', 'A': 10, 'lines': [1]}, {'gpio': 6, 'actuator': 'a1', 'A': 10, 'lines': [2]}, {'gpio': 5, 'actuator': 'a1', 'A': 10, 'lines': [3]}]
+        self.lines = []
+        #assume that one line can be defined only in one channel
+        for ch in actuator_channels:
+            for l in ch["lines"]:
+                self.lines.append({'l':l, 'A': ch["A"], 'gpio': ch["gpio"],'up': False})
+                
+
+        print("LINES NEW")
+        pp.pprint(self.lines)
+        for line in self.lines:
+            setOutGPIO(line["gpio"],line["up"],True)
+            
+        
         self.code = code
         self.reverse_output = data.get("reverse_output",False) #esim. lattialämmityksen poissa-kytkin, todo gpio-handleen
         
+   
+        """
         self.lines = [{"l" : 1, "gpio" : None, "A" : 0 ,"up": False},{"l" : 2, "gpio" : None, "A" : 0,"up": False },{"l" : 3, "gpio" : None, "A" : 0,"up": False }]
-        
-        self.targets = []
+     
+        print("LINES A initiated")
+        pp.pprint(self.lines)
 
         for line in data["lines"]:
             ln = {"l" : line["l"], "gpio" : line["gpio"], "A" : line.get("A",0),"up": False }
             lineInd = line["l"]-1 #HUOM INDEKSOINTI
+            print("debug:", ln, lineInd)
             self.lines[lineInd] = ln
             
             GPIO.setup(ln["gpio"], GPIO.OUT)
             #TODO:: nyt olisi hyvä hetki ajaa GPIOT alas, jos jääneet ylös ennestään
             GPIO.output(ln["gpio"],GPIO.HIGH if ln["up"] else GPIO.LOW)
-          
+        
+        print("LINES B")
+        pp.pprint(self.lines)
+        """ 
+        
+        self.targets = [] 
         for target in data["targets"]:
             tn = {"condition" : target["condition"], "sensor" : target["sensor"], "valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None)}
             self.targets.append(tn) 
-        # reset gpios
-        pass
-    
+     
+  
     
     def getTarget(self,conditionList):
         # get first matching
@@ -263,11 +363,42 @@ class Actuator:
         
         return {"condition" : None,"reached":None, "error": False} # no matching target
     
+    def getLine(self,l):
+        for line in self.lines:
+            if line["l"] == l:
+                return line
+        return None
+    
     def loadUp(self):
-        lineResources = lineResource.getLineCapacity()
+        lineResources = lineResource.getLineCapacity(reverse=False)
+        
+        for lr in lineResources:
+            line = self.getLine(lr["l"])
+            print("line",line)
+            if line is not None:
+                if not line["up"] and lineResources[ line["l"]-1]["availableA"]>10:
+                    print("line {:d} raising up with {:d} A".format(line["l"],line["A"]))
+                    line["up"] = True
+                    setOutGPIO(line["gpio"],line["up"])
+                    print("self.lines after loadUp", self.lines,"lineResources:",lineResources)
+                    return line["A"] 
+                
+                
+        """
         #todo:oikea järjestys
-        # pp.pprint(lineResources)
-        # print(self.code, " loadUp")
+        #väliversio, joka sallii yksivaiheen, muttei oli järjestyksessä
+        for line in self.lines:
+            if not line["up"] and lineResources[ line["l"]-1]["availableA"]>10:
+                print("line {:d} raising up with {:d} A".format(line["l"],line["A"]))
+                line["up"] = True
+                setOutGPIO(line["gpio"],line["up"])
+                print("self.lines after loadUp", self.lines,"lineResources:",lineResources)
+                return line["A"]
+        """
+                
+        """    
+        #TODO: vaatii nyt ilmeisesti kaikki kolme lineä..., muuta niin että toimii ykisivaiheisenakin
+        
         for l in range(3):
             #kesken
             line = lineResources[l]["l"]-1
@@ -278,8 +409,9 @@ class Actuator:
                 print("line {:d} raising up with {:d} A".format(line+1,self.lines[line]["A"]))
                 self.lines[line]["up"] = True
                 GPIO.output(self.lines[line]["gpio"],GPIO.HIGH if self.lines[line]["up"] else GPIO.LOW)
+                #setOutGPIO(line["gpio"],line["up"])
                 return self.lines[line]["A"]
-         
+        """ 
         return 0
 
    
@@ -289,8 +421,34 @@ class Actuator:
     #return increased power in A, 0 if nothing to descrease
     
     def loadDown(self):
-        lineResources = lineResource.getLineCapacity() #katso saisiko ton amppeerimäärän laitteelta
-      #  print(self.code, " loadDown")
+        lineResources = lineResource.getLineCapacity(reverse=True) #katso saisiko ton amppeerimäärän laitteelta
+        for lr in lineResources:
+            line = self.getLine(lr["l"])
+            print("line",line)
+            if line is not None:
+                if line["up"]:
+                    print("line {:d} lowering down up with {:d} A".format(line["l"],line["A"]))
+                    line["up"] = False
+                    setOutGPIO(line["gpio"],line["up"])
+                    print("self.lines after loadUp", self.lines,"lineResources:",lineResources)
+                    return -line["A"] 
+            
+        """  väliversio
+        #  print(self.code, " loadDown")
+        # todo: order/random etc
+        for line in self.lines:
+            if line["up"]:
+                print("line {:d} lowering down up with {:d} A".format(line["l"],line["A"]))
+                line["up"] = False
+                setOutGPIO(line["gpio"],line["up"])
+                print("self.lines after loadUp", self.lines,"lineResources:",lineResources)
+                return -line["A"]
+                
+        """
+        
+        """
+        #TODO: kuten loadUp, muuta että toimii yksivaihesena
+      
         for l in range(2,-1,-1): 
             line = lineResources[l]["l"]-1
             if not self.lines[line].get("up",False):
@@ -301,7 +459,7 @@ class Actuator:
                 self.lines[line]["up"] = False
                 GPIO.output(self.lines[line]["gpio"],GPIO.HIGH if self.lines[line]["up"] else GPIO.LOW)
                 return -self.lines[line]["A"]
-         
+        """ 
         return 0
     
 
@@ -312,9 +470,7 @@ class Actuator:
     
     
 #- - - - - - - - -
-# set Modbus defaults
-Defaults.UnitId = s.MB_ID
-Defaults.Retries = 5
+
 
 class FieldObj(object):
     pass
@@ -324,7 +480,8 @@ class FieldObj(object):
 # Function that returns array with IDs of all found thermometers
 def find_thermometers():
     # Get all devices
-    w1Devices = glob(s.w1DeviceFolder + '/*/')
+    w1DeviceFolder = onewire_settings["w1DeviceFolder"]
+    w1Devices = glob(w1DeviceFolder + '/*/')
     # Create regular expression to filter only those starting with '28', which is thermometer
     w1ThermometerCode = re.compile(r'28-\d+')
     # Initialize the array
@@ -332,7 +489,7 @@ def find_thermometers():
     # Go through all devices
     for device in w1Devices:
         # Read the device code
-        deviceCode = device[len(s.w1DeviceFolder)+1:-1]
+        deviceCode = device[len(w1DeviceFolder)+1:-1]
         # If the code matches thermometer code add it to the array
         if w1ThermometerCode.match(deviceCode):
             thermometers.append(deviceCode)
@@ -342,7 +499,8 @@ def find_thermometers():
 
 # Function that reads and returns the raw content of 'w1_slave' file
 def read_temp_raw(deviceCode):
-    f = open(s.w1DeviceFolder + '/' + deviceCode + '/w1_slave' , 'r')
+    w1DeviceFolder = onewire_settings["w1DeviceFolder"]
+    f = open(w1DeviceFolder + '/' + deviceCode + '/w1_slave' , 'r')
     lines = f.readlines()
     f.close()
     return lines
@@ -376,7 +534,7 @@ print ("Connecting influx")
 #TODO: virhehavainnointi kytkentäään ja siihen jos yhteys katkennut
 ifclient = InfluxDBClient(host=s.ifHost, port=s.ifPort, username=s.ifUsername, password=s.ifPassword, ssl=s.ifssl, verify_ssl=s.ifVerify_ssl, timeout=s.ifTimeout, database=s.ifDatabase)
 
-thermometers = find_thermometers()
+thermometers = None
 
  
 def sig_handler(signum, frame):
@@ -385,8 +543,8 @@ def sig_handler(signum, frame):
 
         
 def check_conditions(importTot):
-  #  global s.conditions
     ok_conditions = []
+    global hourCumulativeEnergyPurchase
     # get the standard UTC time  
    
 
@@ -403,13 +561,18 @@ def check_conditions(importTot):
     
 
     
-    for key in s.conditions:
+    for key in conditions:
         ok = True
-        condition = s.conditions[key]
+        condition = conditions[key]
         
         if "netsales" in condition.keys(): # check netsales condition
-            if condition["netsales"] and importTot> -s.basicInfo["netSalesMaxExportkW"]: 
-                ok = False
+            if condition["netsales"]:
+                if s.basicInfo["hourNetting"] and hourCumulativeEnergyPurchase> 0: #netpurchase
+                    ok = False
+                elif (not s.basicInfo["hourNetting"]) and importTot> -s.basicInfo["netSalesMaxExportkW"]:
+                    ok = False
+    
+                
                 
         if ok and "starttime" in condition.keys() and "endtime" in condition.keys(): # check time
             if condition["starttime"] > condition["endtime"]: # assume condition reaches over midnight
@@ -488,6 +651,7 @@ def doWork():
     global imports, importTot 
     global lineResource
     global pricesAndForecast,lastPriceHour
+    global previousTotalEnergyHour, previousTotalEnergy,hourCumulativeEnergyPurchase, hourMeasurementCount
   
     mbus_read_ok = True 
     try:
@@ -559,7 +723,7 @@ def doWork():
         lastPriceHour = dtnow.hour
  
     if mbus_read_ok:   
-        for data_point in s.data_points:
+        for data_point in modbus_settings["data_points"]:
  
             if 6 <= data_point["idx"] <= 8: #load per phase A
                 loadsA[data_point["idx"]-6] = res[data_point["idx"]]/data_point["factor"]
@@ -589,7 +753,28 @@ def doWork():
                     storep[ "cost"] = importTot*pricesAndForecast["totalPrice"]/100000
                 else:
                     storep[ "cost"] = importTot*(pricesAndForecast["energyPriceSpot"]-s.spotMarginSales)/100000
+            
+            if data_point["idx"] == 29: #Total cumulative
+                
+                cumulativeEnergy = res[data_point["idx"]]/data_point["factor"]
+                
+                if previousTotalEnergy == -1: #first measurement after init
+                    previousTotalEnergy = cumulativeEnergy
                     
+                if previousTotalEnergyHour != dtnow.hour-1: #first measurement within hour
+                    # TODO: could get exact number from the DB
+                    previousTotalEnergyHour = dtnow.hour-1
+                    hourMeasurementCount = 0
+                 
+                
+                hourCumulativeEnergyPurchase = cumulativeEnergy-previousTotalEnergy
+                storep["hourCumulativeEnergyPurchase"]= hourCumulativeEnergyPurchase               
+                hourMeasurementCount +=1
+                
+                if hourMeasurementCount==1: #first measurement of hour, init cumulative
+                    previousTotalEnergy = cumulativeEnergy
+                
+            
             if data_point["enabled"]==1:
                 #print ("%s: %.2f %s " % (data_point["desc"],res[data_point["idx"]]/data_point["factor"], data_point["unit"]))
                 storep[ data_point["desc"].replace(" ","")]= res[data_point["idx"]]/data_point["factor"]
@@ -644,10 +829,11 @@ def doWork():
     
     for actuator in actuators:
         target = actuator.getTarget(current_conditions)
-        targetTemp = target["targetTemp"]
+        targetTemp = target.get("targetTemp",None)
         targetTempsReport.append({"code": actuator.code,"targetTemp":targetTemp} ) 
   
     random_actuators = actuators.copy()
+    random.seed()
     random.shuffle(random_actuators) # set up load in random order
     
 
@@ -671,12 +857,63 @@ def doWork():
 
  
 def load_program_config(signum=None, frame=None):
-    global actuators,sensorData,lineResource
-    for act in s.actuators:
-        actuator =  Actuator(act,s.actuators[act])
+    global actuators,sensorData,thermometers, lineResource
+    global modbus_settings,onewire_settings,switches,conditions
+    
+    #modbus
+    modbus_settings = readSettings(modbus_settings_filename) 
+    # set Modbus defaults
+    Defaults.UnitId = modbus_settings["MB_ID"]
+    Defaults.Retries = 5
+     
+     #onewire
+    onewire_settings = readSettings(onewire_settings_filename)  
+    sensorData = SensorData(onewire_settings["sensors"])
+    thermometers = find_thermometers()
+    
+    found_new_sensors = False
+    for thermometer in thermometers:
+        if not sensorData.setEnabledById(thermometer,  True):
+            found_new_sensors = True
+            onewire_settings["sensors"].append( {"code":'s'+str(len(onewire_settings["sensors"])+1), "type": "1-wire", "id": thermometer, "desc":"Automatically added"})
+    
+    
+    if found_new_sensors:
+        with open(onewire_settings_filename, 'w') as outfile:
+            json.dump(onewire_settings, outfile, indent=4) 
+        #reread
+        sensorData = SensorData(onewire_settings["sensors"])
+        for thermometer in thermometers:
+            sensorData.setEnabledById(thermometer,  True)       
+
+    #channels
+    channels = readSettings(channels_filename) 
+    
+    #switches
+    switches = readSettings(switches_settings_filename) 
+    
+    for act in switches:
+        actuator_channels=[]
+        
+       
+        for ckey,channel in channels.items():
+            if channel["actuator"] == act:
+                actuator_channels.append(channel)
+                          
+        print(act,actuator_channels)
+        actuator =  Actuator(act,switches[act],actuator_channels)
         actuators.append(actuator)
         
-    sensorData = SensorData(s.sensors)
+
+
+    # conditions
+    conditions = readSettings(conditions_filename) 
+
+        #sensorData.addSensor(thermometer,thermometer, sensor.get("desc",""),False,sensor["type"])
+ 
+    print(onewire_settings)
+    pp.pprint(sensorData.sensors)  
+    
     lineResource = LineResource()       
     return None
 
@@ -689,13 +926,13 @@ def main(argv):
     
     load_program_config()    
     
-    client_modbus = ModbusClient(method='rtu', port=s.SERIAL, stopbits=1, bytesize=8, timeout=0.25, baudrate=s.BAUD, parity='N')
+    client_modbus = ModbusClient(method='rtu', port=modbus_settings["SERIAL"], stopbits=1, bytesize=8, timeout=0.25, baudrate=modbus_settings["BAUD"], parity='N')
     connection = client_modbus.connect()
  
     signal.signal(signal.SIGINT, sig_handler)
     
     l = task.LoopingCall(doWork)
-    l.start(s.READ_INTERVAL)
+    l.start(modbus_settings["READ_INTERVAL"])
     
     # start event loop, e.g. doWork process
     reactor.run()

@@ -1,0 +1,65 @@
+{
+	"sun": {
+		"netsales": true,
+		"desc": ""
+	},
+	"sunnydaycoming": {
+		"starttime": "04:00:00",
+		"endtime": "07:00:00",
+		"solar12above": 5.0,
+		"desc": "sunny day coming (do not overheat the boilers)"
+	},
+	"darkdaycoming": {
+		"starttime": "04:00:00",
+		"endtime": "07:00:00",
+		"solar12below": 5.0,
+		"desc": "dark day coming (heat the boilers, there will be no cheap energy today)"
+	},
+	"morning": {
+		"starttime": "07:00:00",
+		"endtime": "10:00:00",
+		"desc": "varaajat levossa, aurinkoyösähköä odotellessa ainakin kesällä"
+	},
+	"evening": {
+		"starttime": "18:30:00",
+		"endtime": "22:05:00",
+		"desc": "varaajat levossa, yösähköä odotellessa"
+	},
+	"cooling1": {
+		"starttime": "04:30:00",
+		"endtime": "09:30:00",
+		"desc": "lasketaan lauhdevaraajan lämpöä ennen maidon jäähdytystä"
+	},
+	"cooling2": {
+		"starttime": "13:30:00",
+		"endtime": "18:30:00",
+		"desc": "lasketaan lauhdevaraajan lämpöä ennen maidon jäähdytystä"
+	},
+	"summernight": {
+		"starttime": "22:00:00",
+		"endtime": "07:00:00",
+		"dayfirst": "02-15",
+		"daylast": "10-15",
+		"desc": ""
+	},
+	"winternight1": {
+		"starttime": "22:00:00",
+		"endtime": "04:00:00",
+		"dayfirst": "10-16",
+		"daylast": "02-14",
+		"desc": ""
+	},
+	"winternight": {
+		"starttime": "22:00:00",
+		"endtime": "07:00:00",
+		"dayfirst": "10-16",
+		"daylast": "02-14",
+		"desc": ""
+	},
+	"day": {
+		"starttime": "07:00:00",
+		"endtime": "22:00:00",
+		"desc": ""
+	}
+}
+                  

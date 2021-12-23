@@ -1,0 +1,404 @@
+{
+	"SERIAL": "/dev/ttyUSB0",
+	"BAUD": 9600,
+	"MB_ID": 1,
+	"READ_INTERVAL": 60,
+	"data_points": [
+		{
+			"idx": 0,
+			"loc": 0,
+			"desc": "V L1-N",
+			"type": "int32",
+			"unit": "V",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 1,
+			"loc": 2,
+			"desc": "V L2-N",
+			"type": "int32",
+			"unit": "V",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 2,
+			"loc": 4,
+			"desc": "V L3-N",
+			"type": "int32",
+			"unit": "V",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 3,
+			"loc": 6,
+			"desc": "V L1-L2",
+			"type": "int32",
+			"unit": "V",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 4,
+			"loc": 8,
+			"desc": "V L2-L3",
+			"type": "int32",
+			"unit": "V",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 5,
+			"loc": 10,
+			"desc": "V L3-L1",
+			"type": "int32",
+			"unit": "V",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 6,
+			"loc": 12,
+			"desc": "A L1",
+			"type": "int32",
+			"unit": "A",
+			"factor": 1000,
+			"enabled": 1
+		},
+		{
+			"idx": 7,
+			"loc": 14,
+			"desc": "A L2",
+			"type": "int32",
+			"unit": "A",
+			"factor": 1000,
+			"enabled": 1
+		},
+		{
+			"idx": 8,
+			"loc": 16,
+			"desc": "A L3",
+			"type": "int32",
+			"unit": "A",
+			"factor": 1000,
+			"enabled": 1
+		},
+		{
+			"idx": 9,
+			"loc": 18,
+			"desc": "kW L1",
+			"type": "int32",
+			"unit": "W",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 10,
+			"loc": 20,
+			"desc": "kW L2",
+			"type": "int32",
+			"unit": "W",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 11,
+			"loc": 22,
+			"desc": "kW L3",
+			"type": "int32",
+			"unit": "W",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 12,
+			"loc": 24,
+			"desc": "kVA L1",
+			"type": "int32",
+			"unit": "VA",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 13,
+			"loc": 26,
+			"desc": "kVA L2",
+			"type": "int32",
+			"unit": "VA",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 14,
+			"loc": 28,
+			"desc": "kVA L3",
+			"type": "int32",
+			"unit": "VA",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 15,
+			"loc": 30,
+			"desc": "kvar L1",
+			"type": "int32",
+			"unit": "var",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 16,
+			"loc": 32,
+			"desc": "kvar L2",
+			"type": "int32",
+			"unit": "var",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 17,
+			"loc": 34,
+			"desc": "kvar L3",
+			"type": "int32",
+			"unit": "var",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 18,
+			"loc": 36,
+			"desc": "V L-N sys",
+			"type": "int32",
+			"unit": "Volt",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 19,
+			"loc": 38,
+			"desc": "V L-L sys",
+			"type": "int32",
+			"unit": "Volt",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 20,
+			"loc": 40,
+			"desc": "kW sys",
+			"type": "int32",
+			"unit": "Watt",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 21,
+			"loc": 42,
+			"desc": "kVA sys",
+			"type": "int32",
+			"unit": "VA",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 22,
+			"loc": 44,
+			"desc": "kvar sys",
+			"type": "int32",
+			"unit": "var",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 23,
+			"loc": 46,
+			"desc": "PF L1",
+			"type": "int16",
+			"unit": "PF",
+			"factor": 1000,
+			"enabled": 1
+		},
+		{
+			"idx": 24,
+			"loc": 47,
+			"desc": "PF L2",
+			"type": "int16",
+			"unit": "PF",
+			"factor": 1000,
+			"enabled": 1
+		},
+		{
+			"idx": 25,
+			"loc": 48,
+			"desc": "PF L3",
+			"type": "int16",
+			"unit": "PF",
+			"factor": 1000,
+			"enabled": 1
+		},
+		{
+			"idx": 26,
+			"loc": 49,
+			"desc": "PF sys",
+			"type": "int16",
+			"unit": "PF",
+			"factor": 1000,
+			"enabled": 1
+		},
+		{
+			"idx": 27,
+			"loc": 50,
+			"desc": "Phase sequence",
+			"type": "int16",
+			"unit": "",
+			"factor": 1,
+			"enabled": 0
+		},
+		{
+			"idx": 28,
+			"loc": 51,
+			"desc": "Hz ",
+			"type": "int16",
+			"unit": "Hz",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 29,
+			"loc": 52,
+			"desc": "kWh (+) TOT",
+			"type": "int32",
+			"unit": "kWh",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 30,
+			"loc": 54,
+			"desc": "Kvarh (+) TOT",
+			"type": "int32",
+			"unit": "kvarh",
+			"factor": 10,
+			"enabled": 1
+		},
+		{
+			"idx": 31,
+			"loc": 56,
+			"desc": "kW dmd",
+			"type": "int32",
+			"unit": "Watt",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 32,
+			"loc": 58,
+			"desc": "kW dmd peak",
+			"type": "int32",
+			"unit": "Watt",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 33,
+			"loc": 60,
+			"desc": "kWh (+) PARTIAL",
+			"type": "int32",
+			"unit": "kWh",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 34,
+			"loc": 62,
+			"desc": "Kvarh (+) PARTIAL",
+			"type": "int32",
+			"unit": "kvarh",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 35,
+			"loc": 64,
+			"desc": "kWh (+) L1",
+			"type": "int32",
+			"unit": "kWh",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 36,
+			"loc": 66,
+			"desc": "kWh (+) L2",
+			"type": "int32",
+			"unit": "kWh",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 37,
+			"loc": 68,
+			"desc": "kWh (+) L3",
+			"type": "int32",
+			"unit": "kWh",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 38,
+			"loc": 70,
+			"desc": "kWh (+) t1",
+			"type": "int32",
+			"unit": "kWh",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 39,
+			"loc": 72,
+			"desc": "kWh (+) t2",
+			"type": "int32",
+			"unit": "kWh",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 40,
+			"loc": 74,
+			"desc": "kWh (+) t3",
+			"type": "int32",
+			"unit": "NA",
+			"factor": 1,
+			"enabled": 0
+		},
+		{
+			"idx": 41,
+			"loc": 76,
+			"desc": "kWh (+) t4",
+			"type": "int32",
+			"unit": "NA",
+			"factor": 1,
+			"enabled": 0
+		},
+		{
+			"idx": 42,
+			"loc": 78,
+			"desc": "kWh (-) TOT",
+			"type": "int32",
+			"unit": "kWh",
+			"factor": 10,
+			"enabled": 0
+		},
+		{
+			"idx": 43,
+			"loc": 80,
+			"desc": "kvarh (-) TOT",
+			"type": "int32",
+			"unit": "kvarh",
+			"factor": 10,
+			"enabled": 0
+		}
+	]
+}

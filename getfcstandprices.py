@@ -32,7 +32,8 @@ def getNordPoolSPOTfromEntsoEU():
 		return
 		
 	json_body = []
-	dt = datetime.fromtimestamp(int(time.time()/(3600*24))*(3600*24)-3600)
+	day_in_seconds = 3600*24
+	dt = datetime.fromtimestamp(int(time.time()/(day_in_seconds))*(day_in_seconds)-3600) #-(3600*24)
 	nowdt = datetime.now()
 	
 	
@@ -105,7 +106,7 @@ def getBCDCSolarForecast():
 	return fcst_data
 
 # report
-def ExportForecast2InfluxDB(fcst_data):
+def ExportForecastToInfluxDB(fcst_data):
 	ifclient = InfluxDBClient(host=s.ifHost, port=s.ifPort, username=s.ifUsername, password=s.ifPassword, ssl=s.ifssl, verify_ssl=s.ifVerify_ssl,timeout=s.ifTimeout, database=s.ifDatabase)
 
 	i=0
@@ -157,7 +158,7 @@ getNordPoolSPOTfromEntsoEU()
 
 print ("****Fetching forecast:")
 fcst_data = getBCDCSolarForecast()
-ExportForecast2InfluxDB(fcst_data) 
+ExportForecastToInfluxDB(fcst_data) 
 
 
 

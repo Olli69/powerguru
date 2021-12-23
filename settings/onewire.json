@@ -1,0 +1,17 @@
+{
+    "w1DeviceFolder": "/sys/bus/w1/devices",
+    "sensors": [
+        {
+            "code": "s1",
+            "type": "1-wire",
+            "id": "28-0316a2792d26",
+            "desc": "Automatically added"
+        },
+        {
+            "code": "s2",
+            "type": "1-wire",
+            "id": "28-0319a2795084",
+            "desc": "Automatically added"
+        }
+    ]
+}
