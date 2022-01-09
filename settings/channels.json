@@ -1,56 +1,129 @@
-{
-	"c1": {
+[
+	{
 		"gpio": 16,
-		"actuator": "a1",
-		"A": 10,
+		"name": "Tulistus L1-L3",
+		"loadW" :3000,
 		"lines": [
-			1
+			1,
+			2,
+			3
+		],
+		"targets": [
+			{
+				"condition": "netsales",
+				"sensor": "s1",
+				"valueabove": 90
+			},
+			{
+				"condition": "darkdaycoming",
+				"sensor": "s1",
+				"valueabove": 70
+			},
+			{
+				"condition": "sunnydaycoming",
+				"sensor": "s1",
+				"valueabove": 50
+			},
+			{
+				"condition": "evening",
+				"sensor": "s1",
+				"valueabove": 50
+			},
+			{
+				"condition": "default",
+				"sensor": "s1",
+				"valueabove": 60
+			}
 		]
 	},
-	"c2": {
+	{
 		"gpio": 6,
-		"actuator": "a1",
-		"A": 10,
+		"name": "Syöttö L1-L3",
+		"loadW" :3000,
 		"lines": [
-			2
+			1,
+			2,
+			3
+		],
+		"targets": [
+			{
+				"condition": "netsales",
+				"sensor": "s2",
+				"valueabove": 90
+			},
+			{
+				"condition": "default",
+				"sensor": "s2",
+				"valueabove": 10
+			}
 		]
 	},
-	"c3": {
+	{
 		"gpio": 5,
-		"actuator": "a1",
-		"A": 10,
+		"name": "Lattial keittiö",
+		"loadW" :1500,
 		"lines": [
 			3
+		],
+		"targets": [
+			{
+				"condition": "netsales",
+				"forceOn": true
+			},
+			{
+				"condition": "default",
+				"forceOn": true
+			}
 		]
 	},
-	"c4": {
+	{
 		"gpio": 25,
-		"actuator": "a2",
-		"A": 10,
+		"name": "Lattial olohuone",
+		"loadW" :2000,
+		"lines": [
+			2
+		],
+		"targets": [
+			{
+				"condition": "netsales",
+				"forceOn": true
+			},
+			{
+				"condition": "default",
+				"forceOn": false
+			}
+		]
+	},
+	{
+		"gpio": 24,
+		"name": "Lattial kylpyh",
+		"loadW" :1000,
 		"lines": [
 			1
+		],
+		"targets": [
+			{
+				"condition": "netsales",
+				"forceOn": true
+			},
+			{
+				"condition": "default",
+				"forceOn": false
+			}
 		]
 	},
-	"c5": {
-		"gpio": 24,
-		"actuator": "a2",
-		"A": 10,
-		"lines": [
-			2
-		]
-	},
-	"c6": {
+	{
 		"gpio": 23,
-		"actuator": "a2",
-		"A": 10,
+		"name": "ei käytössä",
+		"loadW" :0,
 		"lines": [
 			3
 		]
 	},
-	"c7": {
+	{
 		"gpio": null,
-		"actuator": null,
-		"A": null,
+		"name": "ei käytössä",
+		"loadW" :0,
 		"lines": []
 	}
-}
+]

@@ -5,13 +5,13 @@
             "code": "s1",
             "type": "1-wire",
             "id": "28-0316a2792d26",
-            "desc": "Automatically added"
+            "name": "Tulistus"
         },
         {
             "code": "s2",
             "type": "1-wire",
             "id": "28-0319a2795084",
-            "desc": "Automatically added"
+            "name": "Syöttö"
         }
     ]
 }

@@ -1,7 +1,7 @@
 {
-	"sun": {
+	"netsales": {
 		"netsales": true,
-		"desc": ""
+		"desc": "More production than consumption"
 	},
 	"sunnydaycoming": {
 		"starttime": "04:00:00",
@@ -25,28 +25,11 @@
 		"endtime": "22:05:00",
 		"desc": "varaajat levossa, yösähköä odotellessa"
 	},
-	"cooling1": {
-		"starttime": "04:30:00",
-		"endtime": "09:30:00",
-		"desc": "lasketaan lauhdevaraajan lämpöä ennen maidon jäähdytystä"
-	},
-	"cooling2": {
-		"starttime": "13:30:00",
-		"endtime": "18:30:00",
-		"desc": "lasketaan lauhdevaraajan lämpöä ennen maidon jäähdytystä"
-	},
 	"summernight": {
 		"starttime": "22:00:00",
 		"endtime": "07:00:00",
 		"dayfirst": "02-15",
 		"daylast": "10-15",
-		"desc": ""
-	},
-	"winternight1": {
-		"starttime": "22:00:00",
-		"endtime": "04:00:00",
-		"dayfirst": "10-16",
-		"daylast": "02-14",
 		"desc": ""
 	},
 	"winternight": {
@@ -60,6 +43,21 @@
 		"starttime": "07:00:00",
 		"endtime": "22:00:00",
 		"desc": ""
+	},
+	"default": {
+		"starttime": "00:00:00",
+		"endtime": "23:59:59",
+		"desc": "Matches always"
+	},
+		"spothigh": {
+		"spotAbove": 15.0,
+		"desc": "Spot price is high"
+	},
+		"spotlow": {
+		"spotBelow": 2.0,
+		"desc": "Spot price is low"
 	}
+	
+	
 }
                   

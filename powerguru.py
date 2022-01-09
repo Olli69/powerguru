@@ -18,9 +18,6 @@ from glob import glob #Unix style pathname pattern expansion
 
 from datetime import datetime, timezone,date, timedelta
 
-
-
-
 import asyncio
 import websockets
 from asyncio.exceptions import IncompleteReadError
@@ -42,7 +39,7 @@ GPIO.setwarnings(False)
 #use GPIO-numbers to refer GPIO pins
 GPIO.setmode(GPIO.BCM)
 
-solarForecastBlocks = {"6" : 0, "12" : 0, "18" : 0, "24" : 0}
+solarForecastBlocks = {"6" : 0, "12" : 0, "18" : 0, "24" : 0} 
 
 
 if s.influxType == 'cloud':
@@ -92,8 +89,6 @@ nettingPreviousTotalEnergyPeriod = -999
 nettingPreviousTotalEnergy = -1
 nettingPeriodEnergyPurchase = 0 
 nettingPeriodMeasurementCount = 0
-
-
 
 
 onewire_settings = None
@@ -279,16 +274,17 @@ class SensorData:
        
 # Channel can be e.g. one boiler with 1 or 3 lines (phases)
 class Channel:  
-    def __init__(self, code, data):
-    
-  
-        self.code = code
+    def __init__(self, idx,code, data):
+        
+        self.idx = idx # 0-indexed
+        self.code = code #ch + 1-indexed nbr
         self.name = data["name"]
         self.gpio = data["gpio"]
         self.loadW =  data.get("loadW",0)
         self.up = False
         self.reverse_output = data.get("reverse_output",False) #esim. lattialämmityksen poissa-kytkin, todo gpio-handleen
-        
+        self.target = None
+
         lines = []  
         
         if "lines" in data and len(data["lines"])>0:
@@ -328,7 +324,7 @@ class Channel:
             for target in data["targets"]:
                 tn = {"condition" : target["condition"], "sensor" : target.get("sensor",None), "valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
                 self.targets.append(tn) 
-        
+        """
         print()
         print()
         print("class Channel", self.code) 
@@ -337,6 +333,7 @@ class Channel:
         print()
         print()
         print()
+        """
     
 
     
@@ -349,12 +346,12 @@ class Channel:
                 forceOn = target.get("forceOn",None)
                 if forceOn is not None:
                     targetReached = not forceOn   
-                    #print("getTarget forceOn",target["condition"], "targetReached:", targetReached)
+                    print("getTarget forceOn",target["condition"], "targetReached:", targetReached)
                     return {"condition" : target["condition"],"reached":targetReached, "error": False, "forceOn":forceOn}
      
                 else:
                     if sersorValue is None:
-                        return {"condition" : target["condition"],"reached":None, "error": True, "sersorValue":None}
+                        return {"condition" : target["condition"],"reached":None, "error": True, "sersorValue":None,  "sensor" : None}
       
                     # now we know that condition match and sensor has a value, so we check if the target is reached 
                     targetReached = True
@@ -371,7 +368,7 @@ class Channel:
                         if sersorValue> target["valuebelow"]:
                             targetReached = False
                             
-                    return {"condition" : target["condition"],"reached":targetReached, "error": False
+                    return {"condition" : target["condition"],"reached":targetReached, "error": False, "sensor" : target["sensor"]
                             , "sersorValue":sersorValue,"actuatorCode":self.code,"valueabove" : valueabove,"valuebelow":valuebelow, "targetTemp" : targetTemp}
         
         return {"condition" : None,"reached":True, "error": False} # no matching target
@@ -766,14 +763,14 @@ def recalculate():
     #print("pricesAndForecast",pricesAndForecast)
         
         
-    loadsA[0] = gridenergy_data["fields"]["A L1"]
-    loadsA[1] = gridenergy_data["fields"]["A L2"]
-    loadsA[2] = gridenergy_data["fields"]["A L3"]
-    imports[0] = gridenergy_data["fields"]["W L1"]
-    imports[1] = gridenergy_data["fields"]["W L2"]
-    imports[2] = gridenergy_data["fields"]["W L3"]
-    importTot = gridenergy_data["fields"]["W sys"]
-    cumulativeEnergy = gridenergy_data["fields"]["kWh (+) TOT"]
+    loadsA[0] = gridenergy_data["fields"]["AL1"]
+    loadsA[1] = gridenergy_data["fields"]["AL2"]
+    loadsA[2] = gridenergy_data["fields"]["AL3"]
+    imports[0] = gridenergy_data["fields"]["WL1"]
+    imports[1] = gridenergy_data["fields"]["WL2"]
+    imports[2] = gridenergy_data["fields"]["WL3"]
+    importTot = gridenergy_data["fields"]["Wsys"]
+    cumulativeEnergy = gridenergy_data["fields"]["kWhTOT"]
     
     
     price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
@@ -844,6 +841,7 @@ def recalculate():
     
     targetTempsReport = []
     
+    #TODO:miksi eri loopit, randomin takia?
     for channel in channels:
         target = channel.getTarget(current_conditions)
         targetTemp = target.get("targetTemp",None)
@@ -855,8 +853,8 @@ def recalculate():
     
 
     for channel in random_channels:
-        
         target = channel.getTarget(current_conditions)  
+        channels[channel.idx].target = target 
         #print ("recalculate", channel.code,"target:",target)  
         if not target["reached"]:
             #channel.on = True
@@ -914,12 +912,12 @@ def load_program_config(signum=None, frame=None):
 
     #channels_list
     channels_list = readSettings(s.channels_filename) 
-    index = 1
+    idx = 0
     for channel in channels_list:
-        channel =  Channel("ch"+str(index),channel)
+        channel =  Channel(idx,"ch"+str(idx+1),channel)
         channels.append(channel)
          
-        index += 1
+        idx += 1
 
     # conditions
     conditions = readSettings(s.conditions_filename) 
@@ -1108,7 +1106,7 @@ class WebControlHandler(http.server.SimpleHTTPRequestHandler):
         
         status = {"channels": [], "updates":[], "sensors":[], "current_conditions":None}
         for channel in channels:
-            status["channels"].append({ "code" : channel.code, "name" : channel.name, "up":  channel.up })
+            status["channels"].append({ "code" : channel.code, "name" : channel.name, "up":  channel.up, "target" : channel.target })
 
         for update_key, update_values in data_updates.items():
             updated_dt = (tz_utc.localize(datetime.utcnow())-update_values["updated"])
@@ -1125,7 +1123,7 @@ class WebControlHandler(http.server.SimpleHTTPRequestHandler):
 
 
         if gridenergy_data:
-            status["Wsys"] = gridenergy_data["fields"]["W sys"]
+            status["Wsys"] = gridenergy_data["fields"]["Wsys"]
         else:
             status["Wsys"] = None
         
@@ -1196,7 +1194,7 @@ class WebControlHandler(http.server.SimpleHTTPRequestHandler):
             for sensor in sensorData.sensors:
                 sensorList += "<li>{}({}): {}</li>".format(sensor["code"],sensor["id"],sensor["value"])
 
-            base ="<html><head><meta charset='utf-8'></head><body><ul>{}</ul><ul>{}</ul><ul>{}</ul>osto: {:.1f}<br>{}</body></html>".format(statusList,updateList,sensorList,gridenergy_data["fields"]["W sys"],str(current_conditions))
+            base ="<html><head><meta charset='utf-8'></head><body><ul>{}</ul><ul>{}</ul><ul>{}</ul>osto: {:.1f}<br>{}</body></html>".format(statusList,updateList,sensorList,gridenergy_data["fields"]["Wsys"],str(current_conditions))
             body= bytes(base, "utf-8")
             response_code = 200
 
@@ -1305,7 +1303,7 @@ def start_control_web_server():
 
        
 
-def run_telegraf_once(cmd = "telegraf -once", start_delay = 10): 
+def run_telegraf_once(cmd = "telegraf -once --config-directory /etc/telegraf/telegraf.d", start_delay = 10): 
     time.sleep(start_delay) # let the main thread start
     cmd_arr = cmd.split()
     FNULL = open(os.devnull, 'w') # or  stdout=subprocess.PIPE  or FNULL =open("/tmp/ffmpeg.log", "a+")
