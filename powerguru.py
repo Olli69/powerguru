@@ -17,11 +17,20 @@ import re #regular expression
 from glob import glob #Unix style pathname pattern expansion
 
 from datetime import datetime, timezone,date, timedelta
-
+"""
 import asyncio
 import websockets
 from asyncio.exceptions import IncompleteReadError
 from websockets.exceptions import  ConnectionClosedError
+"""
+
+#aiohttp
+# sudo -H pip3 install aiohttp aiohttp-sse
+import asyncio
+from aiohttp import web
+from aiohttp.web import Response
+from aiohttp_sse import sse_response
+from datetime import datetime
 
 
 #control web server
@@ -99,7 +108,9 @@ channels_list = None
 # global variables
 channels = []
 sensorData = None
-lineResource = None
+powerSystem = None
+
+
 
 
 # get current prices and expected future solar, e.g. solar6h is solar within next 6 hours
@@ -177,16 +188,18 @@ def setOutGPIO(gpio,enable,init=False):
     
     
     
-
- 
  
 # This class handles line resources (phases) e.g.
 #TODO; disabling line capacity handling
-class LineResource:
+class PowerSystem:
     def __init__(self):
         self.lines = [ (1, 0),(2, 0),(3, 0)]
         self.lines_sorted = self.lines
-       
+        self.status_propagated = True
+
+    def set_status_unpropagated(self):
+        self.status_propagated = False    
+
     # check if there is enough line capacity in off lines used by the channel
     #TODO: powerW...
     def requestCapacity(self,requested_lines):
@@ -235,7 +248,36 @@ class LineResource:
         for line in sorted(self.lines, key=lambda line: line[1],reverse=reverse):
             available_lines.append({"l" : line[0],"availableA":s.basicInfo["maxLoadPerPhaseA"]-line[1]})
         return available_lines #näitä voisi kuormittaa jos ei ole jo kuormitettu
+
+    def get_status(self,set_status_propagated):
+        if set_status_propagated:
+            self.status_propagated = True  
+        
+        status = {"channels": [], "updates":[], "sensors":[], "current_conditions":None}
+        for channel in channels:
+            status["channels"].append({ "code" : channel.code, "name" : channel.name, "up":  channel.up, "target" : channel.target })
+
+        for update_key, update_values in data_updates.items():
+            updated_dt = (tz_utc.localize(datetime.utcnow())-update_values["updated"])
+            updated_dt = updated_dt - timedelta(microseconds=updated_dt.microseconds) #round
+            
+            latest_ts_str = datetime.fromtimestamp(update_values["latest_ts"]).strftime("%Y-%m-%dT%H:%M:%S%z") 
+            status["updates"].append({ "code" : update_key, "updated" : update_values["updated"].strftime("%Y-%m-%dT%H:%M:%S%z") , "latest_ts":  latest_ts_str })
                 
+        for sensor in sensorData.sensors:
+            status["sensors"].append({ "code" : sensor["code"], "id" : sensor["id"], "name" : sensor["name"], "value":  sensor["value"] })
+
+        if current_conditions:
+            status["current_conditions"] = current_conditions
+
+
+        if gridenergy_data:
+            status["Wsys"] = gridenergy_data["fields"]["Wsys"]
+        else:
+            status["Wsys"] = None
+        
+        return status
+                       
 
 
 # Stores sensor values (from thermometers)
@@ -346,7 +388,7 @@ class Channel:
                 forceOn = target.get("forceOn",None)
                 if forceOn is not None:
                     targetReached = not forceOn   
-                    print("getTarget forceOn",target["condition"], "targetReached:", targetReached)
+                    # print("getTarget forceOn",target["condition"], "targetReached:", targetReached)
                     return {"condition" : target["condition"],"reached":targetReached, "error": False, "forceOn":forceOn}
      
                 else:
@@ -380,9 +422,9 @@ class Channel:
         return None
     
     def loadUp(self):
-        global lineResource
+        global powerSystem
         print("loadUp", self.name)
-        if lineResource.requestCapacity(self.lines):
+        if powerSystem.requestCapacity(self.lines):
             print("requestCapacity ok")
             setOutGPIO(self.gpio,True)
             self.up = True
@@ -392,7 +434,7 @@ class Channel:
        
         
         """
-        lineResources = lineResource.getLineCapacity(reverse=False)
+        lineResources = powerSystem.getLineCapacity(reverse=False)
         
         for lr in lineResources:
             line = self.getLine(lr["l"])
@@ -420,7 +462,7 @@ class Channel:
         self.up = False
         
         """
-        lineResources = lineResource.getLineCapacity(reverse=True) #katso saisiko ton amppeerimäärän laitteelta
+        lineResources = powerSystem.getLineCapacity(reverse=True) #katso saisiko ton amppeerimäärän laitteelta
         for lr in lineResources:
             line = self.getLine(lr["l"])
             #print("line",line)
@@ -730,7 +772,7 @@ def reportState(targetTempsReport,price_fields):
 # this is the main function called by Reactor event handler and defined in task.LoopingCall(doWork)    
 def recalculate():
     print ('#recalculate')
-    global lineResource
+    global powerSystem
     # old...
     #global previousTotalEnergyHour, previousTotalEnergy,hourCumulativeEnergyPurchase, hourMeasurementCount
     global nettingPeriodEnergyPurchase, nettingPreviousTotalEnergy, nettingPreviousTotalEnergyPeriod,nettingPeriodMeasurementCount
@@ -834,7 +876,7 @@ def recalculate():
     """  
       
     #TODO: OVERLOAD CONTROL!!!    
-    lineResource.setLoad(loadsA[0],loadsA[1],loadsA[2])             
+    powerSystem.setLoad(loadsA[0],loadsA[1],loadsA[2])             
  
     current_conditions = check_conditions(importTot,pricesAndForecast)
 
@@ -871,7 +913,7 @@ def recalculate():
                 break
   
 
-      
+    powerSystem.set_status_unpropagated()
     # export to influxDB
     #TODO: write current_conditions etc calculated  - price_fields - fields to influx
     reportState(targetTempsReport,price_fields)
@@ -880,7 +922,7 @@ def recalculate():
 
 
 def load_program_config(signum=None, frame=None):
-    global actuators,sensorData,thermometers, lineResource
+    global actuators,sensorData,thermometers, powerSystem
     global onewire_settings,conditions #,switches
     global dayahead_list, forecastpv_list
     global channels_list
@@ -926,7 +968,7 @@ def load_program_config(signum=None, frame=None):
     print(onewire_settings)
     pp.pprint(sensorData.sensors)  
     
-    lineResource = LineResource()    
+    powerSystem = PowerSystem()    
     
     # TODO: cache expiration to parameters
     expire_file_cache_h = 8
@@ -1086,7 +1128,7 @@ def process_sensor_data(temperature_data):
             sensorData.setEnabledById(sensor_id,  True) #onko enable tarpeen?
             sensorData.setValueById(sensor_id,value)  
                       
-
+"""
 class WebControlHandler(http.server.SimpleHTTPRequestHandler): 
     def _set_headers(self):
         self.send_response(200)
@@ -1101,34 +1143,6 @@ class WebControlHandler(http.server.SimpleHTTPRequestHandler):
     def do_HEAD(self):
         print("do_HEAD")
         self._set_headers()
-
-    def get_status(self):
-        
-        status = {"channels": [], "updates":[], "sensors":[], "current_conditions":None}
-        for channel in channels:
-            status["channels"].append({ "code" : channel.code, "name" : channel.name, "up":  channel.up, "target" : channel.target })
-
-        for update_key, update_values in data_updates.items():
-            updated_dt = (tz_utc.localize(datetime.utcnow())-update_values["updated"])
-            updated_dt = updated_dt - timedelta(microseconds=updated_dt.microseconds) #round
-            
-            latest_ts_str = datetime.fromtimestamp(update_values["latest_ts"]).strftime("%Y-%m-%dT%H:%M:%S%z") 
-            status["updates"].append({ "code" : update_key, "updated" : update_values["updated"].strftime("%Y-%m-%dT%H:%M:%S%z") , "latest_ts":  latest_ts_str })
-                
-        for sensor in sensorData.sensors:
-            status["sensors"].append({ "code" : sensor["code"], "id" : sensor["id"], "name" : sensor["name"], "value":  sensor["value"] })
-
-        if current_conditions:
-            status["current_conditions"] = current_conditions
-
-
-        if gridenergy_data:
-            status["Wsys"] = gridenergy_data["fields"]["Wsys"]
-        else:
-            status["Wsys"] = None
-        
-        return status
-            
 
 
         
@@ -1145,7 +1159,7 @@ class WebControlHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         #print("do_GET",self.path)
         #defaults
-        global current_conditions 
+        global current_conditions, powerSystem
         response_code = 401
         body= bytes('denied', "utf-8") 
         content_type = "text/html"
@@ -1160,9 +1174,9 @@ class WebControlHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(file.read()) # Read the file and send the contents 
                 return
 
-        elif  self.path == "/status": #status json
+        elif self.path == "/status": #status json
             content_type = "application/json"
-            status_obj = self.get_status()
+            status_obj = powerSystem.get_status(False)
             
             #body= bytes(str(status_obj), "utf-8")
             body= bytes(json.dumps(status_obj), "utf-8")
@@ -1264,7 +1278,6 @@ class WebControlHandler(http.server.SimpleHTTPRequestHandler):
             traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
             
   
- 
   
 def start_control_web_server():  
     control_web_port = 8080
@@ -1288,7 +1301,7 @@ def start_control_web_server():
             traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
     
          
-    """Start the server."""
+    #Start the server.
     socketserver.TCPServer.allow_reuse_address = True
     httpd = socketserver.ThreadingTCPServer(('0.0.0.0', control_web_port),WebControlHandler)
     address = "http://%s:%d" % (httpd.server_address, control_web_port)
@@ -1300,6 +1313,60 @@ def start_control_web_server():
     print("Server started in another thread")
 
     return httpd, address
+"""
+
+#aiohttp
+#async def now_new_data():
+#    return 42
+
+async def status(request):
+    global powerSystem
+    async with sse_response(request) as resp:
+        while True:
+            #data = 'Server Time : {}'.format(datetime.now())
+            status_obj = powerSystem.get_status(True)
+            
+            #print(data)
+            #voisiko viimeisin update mennä globaaliin, jota tutkitaan vaikka sekunnin välein, jos uutta niin tulostetaan json
+            await resp.send(json.dumps(status_obj))  
+            while powerSystem.status_propagated:  
+                await asyncio.sleep(1)
+    return resp
+
+
+async def index(request):
+    # see also: http://demos.aiohttp.org/en/latest/tutorial.html#static-files
+    with open("www/index.html", 'r', encoding='utf8') as f:
+              #  body= bytes(f.read(), "utf-8")
+        return Response(text=f.read(), content_type='text/html');
+
+#async def add_user(request: web.Request) -> web.Response:
+async def process_telegraf_post(request):
+    global gridenergy_data, dayahead_list, forecastpv_list
+
+    obj = await request.json()
+    pp.pprint(obj)
+   
+    if "metrics" in obj:
+        gridenergy_new = filtered_fields(obj["metrics"],"gridenergy",False)
+        if len(gridenergy_new)==1: # there should be only one entry
+            gridenergy_data = gridenergy_new[0]
+            recalculate()
+        
+        temperature_new = filtered_fields(obj["metrics"],"onewire",True)
+        if len(temperature_new)>0:
+            temperature_data = temperature_new
+            process_sensor_data(temperature_data)
+            
+        dayahead_new = filtered_fields(obj["metrics"],"dayahead",False,s.dayahead_file_name)
+        if len(dayahead_new)>0:
+            dayahead_list = dayahead_new
+
+        forecastpv_new = filtered_fields(obj["metrics"],"forecastpv",False,s.forecastpv_file_name)
+        if len(forecastpv_new)>0:
+            forecastpv_list = forecastpv_new
+
+    return web.Response(text=f"Thanks for your contibution!")
 
        
 
@@ -1317,10 +1384,20 @@ def main(argv):
     signal.signal(signal.SIGINT, sig_handler)
     
      #TODO: parameters
-    start_control_web_server()  
+    #start_control_web_server()  
     
     run_telegraf_once_thread =  Thread(target=run_telegraf_once)
     run_telegraf_once_thread.start()
+
+    #aiohttp
+    app = web.Application()
+    app.router.add_route('GET', '/index.html', index)
+    app.router.add_route('GET', '/status', status)
+    app.router.add_route('POST', '/telegraf', process_telegraf_post)
+
+   
+    web.run_app(app, host='0.0.0.0', port=8080)
+
     while True:
         pass
     

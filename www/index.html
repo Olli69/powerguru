@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="icon" href="data:;base64,=">
+    <style>
+        body, h2, p {font-family: Arial, Helvetica, sans-serif;}
+        h2 {font-size:1.5em ;}
+        #updated {font-style: italic;font-size: smaller;}
+        th, td {padding: 4px 6px; text-align: left;}
+        .code {font-weight: bold;}
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <script>
+        var updated = null;
+
+        function update_updated() {
+            if (updated) {
+                updated_ago = parseInt((Date.now()-updated)/1000);
+                $("#updated").empty();
+                $("#updated").append(`Updated ${updated_ago} seconds ago.`);
+            }
+        }
+
+        function DofY(thisDay) {
+            var start = new Date(thisDay.getFullYear(), 0, 0);
+            var diff = (thisDay - start) + ((start.getTimezoneOffset() - thisDay.getTimezoneOffset()) * 60 * 1000);
+            var oneDay = 1000 * 60 * 60 * 24;
+            var day = Math.floor(diff / oneDay);
+           // console.log('Day of year: ' + day);
+            return day;
+        }
+        function timeFormatterDiffDay (thisDay) {
+            var day1 = dateFormatterD.format(thisDay);
+            diff_days = DofY(thisDay)-DofY(new Date(Date.now()));
+            if (diff_days < 0) {
+                day1 = diff_days + ' ' + day1;
+            }
+            else if (diff_days > 0) {
+                day1 = '+'+diff_days + ' ' + day1;
+            }
+            return day1.replace(/\./g, ':');
+
+        }
+        function isUpString(up) {
+            if (up) return "UP"; else return "";
+        }
+
+
+        //const options = { dateStyle : 'short', timeStyle: 'short'};
+        dateFormatter = new Intl.DateTimeFormat('fi-FI', { dateStyle: 'short', timeStyle: 'medium' });
+        dateFormatterD = new Intl.DateTimeFormat('fi-FI', {  timeStyle: 'medium' });
+
+        var evtSource = new EventSource("/status");
+        evtSource.onmessage = function(e) {
+            const result = JSON.parse(e.data);
+            $("#status").empty();
+            $("#status").append("<h2>Status</h2><table>");
+            
+            if (result.Wsys) {
+                $("#status").append(`<tr><td>Incoming power</td><td>${Math.round(result.Wsys)} W </td></tr>`);  
+            }
+            if (result.current_conditions) {
+                var stateStr = '<b>' + result.current_conditions.join('</b>, <b>')+'</b>';
+                $("#status").append("<tr><td>Current states</td><td>" + stateStr + "</td></tr>");       
+            }
+            $("#status").append("</table>");
+            $("#status").append("<h2>Channels</h2><table>");
+            $("#status").append("<tr><td></td><td>channel</td><td></td><td>state info</td></tr>");
+            $.each(result.channels, function (i, field) {
+                targetText = "";
+                if (field.target && field.up) {
+                    if (field.target.forceOn) {
+                        targetText = `<b>${field.target.condition}</b><br> always on`;      
+                    }
+                    else if (!field.target.reached) {
+                        targetText = `<b>${field.target.condition}</b><br>${field.target.sensor}: ${field.target.sersorValue} &deg;C => ${field.target.targetTemp}`;  
+                    }
+                }
+                $("#status").append(`<tr><td class="code">${field.code}</td><td>${field.name} </td><td>${isUpString(field.up)}</td><td> ${targetText}</td></tr>`);
+
+            });
+            $("#status").append("</table>");
+
+            $("#status").append("<h2>Sensors</h2><table>");
+            $.each(result.sensors, function (i, field) {
+                $("#status").append(`<tr><td class="code">${field.code}</td><td> ${field.name}</td><td> ${field.value} &deg;C</td></tr>`);
+            });
+            $("#status").append("</table>");
+            $("#status").append("<h2>Updates</h2><table>");
+            $("#status").append("<tr><td>data</td><td>updated</td><td>last timestamp</td></tr>");
+            $.each(result.updates, function (i, field) {
+                var updated = timeFormatterDiffDay(new Date(field.updated));
+                var lts = timeFormatterDiffDay(new Date(field.latest_ts));
+                $("#status").append(`<tr><td  class="code">${field.code}</td><td>${updated}</td><td>${lts} </td></tr>`);
+            });
+            $("#status").append("</table>");
+
+            updated = Date.now();
+            update_updated();
+        }
+        $(document).ready(function () {
+            var intervalID = setInterval(update_updated, 1000);
+           
+        });
+
+
+    </script>
+</head>
+
+<body>
+
+   
+
+<div id="status"></div>
+<br><br>
+<div id="updated"></div>
+
+
+</body>
+
+</html>
