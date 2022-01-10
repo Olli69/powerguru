@@ -109,7 +109,7 @@ channels_list = None
 channels = []
 sensorData = None
 powerSystem = None
-
+pricesAndForecast = None
 
 
 
@@ -270,6 +270,11 @@ class PowerSystem:
         if current_conditions:
             status["current_conditions"] = current_conditions
 
+        if dayahead_list:
+            status["energyPriceSpot"] = pricesAndForecast.get("energyPriceSpot",None)
+        else:
+            status["energyPriceSpot"] = None
+ 
 
         if gridenergy_data:
             status["Wsys"] = gridenergy_data["fields"]["Wsys"]
@@ -772,7 +777,7 @@ def reportState(targetTempsReport,price_fields):
 # this is the main function called by Reactor event handler and defined in task.LoopingCall(doWork)    
 def recalculate():
     print ('#recalculate')
-    global powerSystem
+    global powerSystem, pricesAndForecast
     # old...
     #global previousTotalEnergyHour, previousTotalEnergy,hourCumulativeEnergyPurchase, hourMeasurementCount
     global nettingPeriodEnergyPurchase, nettingPreviousTotalEnergy, nettingPreviousTotalEnergyPeriod,nettingPeriodMeasurementCount
