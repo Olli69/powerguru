@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 #Get solar energy forecast from www.bcdcenergia.fi and outputs it in format readable by Telegraf
+
 import requests
 import json
 import settings as s

@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+#Get day-ahead energy prices from Entsoe API and output stuff in a format readable by Telegraf
+
 import requests
 import json
 import settings as s
