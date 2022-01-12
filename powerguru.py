@@ -17,12 +17,7 @@ import re #regular expression
 from glob import glob #Unix style pathname pattern expansion
 
 from datetime import datetime, timezone,date, timedelta
-"""
-import asyncio
-import websockets
-from asyncio.exceptions import IncompleteReadError
-from websockets.exceptions import  ConnectionClosedError
-"""
+
 
 #aiohttp
 # sudo -H pip3 install aiohttp aiohttp-sse
@@ -32,16 +27,17 @@ from aiohttp.web import Response
 from aiohttp_sse import sse_response
 from datetime import datetime
 
-
+from threading import Thread, current_thread
+"""
 #control web server
 import http.server
 import socketserver
 import cgi
-from threading import Thread, current_thread
+
 from urllib.parse import urlparse
 from urllib.parse import parse_qs
 import ntpath
-
+"""
 
 import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
 GPIO.setwarnings(False)
@@ -249,6 +245,7 @@ class PowerSystem:
             available_lines.append({"l" : line[0],"availableA":s.basicInfo["maxLoadPerPhaseA"]-line[1]})
         return available_lines #näitä voisi kuormittaa jos ei ole jo kuormitettu
 
+    #for the dashboard
     def get_status(self,set_status_propagated):
         if set_status_propagated:
             self.status_propagated = True  
@@ -318,15 +315,26 @@ class SensorData:
         return None
 
   
-       
+class channelType(Enum): #RFU 
+    SWITCH = 0 #default 
+    TESLA_VEHICLE = 101   # more an idea now, not implemented yet, could send start/stop charging commands via Tesla API
+    TESLA_POWERWALL = 102  # see previous
+
+""" Tesla API interface would probably need:
+- OAuth authentication
+- minimum uptime for the channel (re)
+- reading battery state (like temp sensor in boilers) /api/1/vehicles/:id/vehicle_data : response.charge_state.battery_level
+"""
+
 # Channel can be e.g. one boiler with 1 or 3 lines (phases)
 class Channel:  
     def __init__(self, idx,code, data):
-        
+        self.type = channelType.SWITCH #RFU, could be eg. battery system
         self.idx = idx # 0-indexed
         self.code = code #ch + 1-indexed nbr
         self.name = data["name"]
         self.gpio = data["gpio"]
+        
         self.loadW =  data.get("loadW",0)
         self.up = False
         self.reverse_output = data.get("reverse_output",False) #esim. lattialämmityksen poissa-kytkin, todo gpio-handleen
@@ -1133,192 +1141,7 @@ def process_sensor_data(temperature_data):
             sensorData.setEnabledById(sensor_id,  True) #onko enable tarpeen?
             sensorData.setValueById(sensor_id,value)  
                       
-"""
-class WebControlHandler(http.server.SimpleHTTPRequestHandler): 
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header("Content-type", "application/json")
-        self.end_headers()
-        
-    def end_headers (self):
-       # print("add Access-Control-Allow-Origin")
-       # self.send_header('Access-Control-Allow-Origin', '*')
-        http.server.SimpleHTTPRequestHandler.end_headers(self)
 
-    def do_HEAD(self):
-        print("do_HEAD")
-        self._set_headers()
-
-
-        
-    # https://gist.github.com/igniteflow/5436066    
-    def do_OPTIONS(self):
-        print("do_OPTIONS")
-        self.send_response(200, "ok")
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        self.send_header("Access-Control-Allow-Headers", "X-Requested-With")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-        
-    def do_GET(self):
-        #print("do_GET",self.path)
-        #defaults
-        global current_conditions, powerSystem
-        response_code = 401
-        body= bytes('denied', "utf-8") 
-        content_type = "text/html"
-        
-        if self.path.startswith("/img/"): #image files from certain folder are exception
-            head, tail = ntpath.split(self.path)
-            basename =  ntpath.basename(head)
-            with open('www/html/img/'+tail, 'rb') as file: #binary mode
-                self.send_response(200)
-                self.send_header("Content-Type", "image/jpeg")
-                self.end_headers()
-                self.wfile.write(file.read()) # Read the file and send the contents 
-                return
-
-        elif self.path == "/status": #status json
-            content_type = "application/json"
-            status_obj = powerSystem.get_status(False)
-            
-            #body= bytes(str(status_obj), "utf-8")
-            body= bytes(json.dumps(status_obj), "utf-8")
-            response_code = 200
-        
-        elif  self.path == "/main.html": #status json  
-            with open("www/main.html", 'r', encoding='utf8') as f:
-                body= bytes(f.read(), "utf-8")
-            response_code = 200
-
-                
-        
-        elif  self.path == "/":# or self.path.startswith("/?"): #main admin view
-            statusList = ""
-            for channel in channels:
-                statusList += "<li>{}-{}: {}</li>".format(channel.code,channel.name, "<b>on</b>" if channel.up else "off")
-            
-            updateList = ""
-            for update_key, update_values in data_updates.items():
-                updated_dt = (datetime.utcnow()-update_values["updated"])
-                updated_dt = updated_dt - timedelta(microseconds=updated_dt.microseconds)
-                
-                latest_ts_str = datetime.fromtimestamp(update_values["latest_ts"]).strftime("%H:%M:%S")
-                if datetime.fromtimestamp(update_values["latest_ts"]).day != datetime.now().day:
-                    latest_ts_str += "({})".format(datetime.fromtimestamp(update_values["latest_ts"]).day)
-                updateList += "<li>{}: {} ago,  latest ts {}</li>".format(update_key,str(updated_dt), latest_ts_str)
-                
-            sensorList = ""
-            for sensor in sensorData.sensors:
-                sensorList += "<li>{}({}): {}</li>".format(sensor["code"],sensor["id"],sensor["value"])
-
-            base ="<html><head><meta charset='utf-8'></head><body><ul>{}</ul><ul>{}</ul><ul>{}</ul>osto: {:.1f}<br>{}</body></html>".format(statusList,updateList,sensorList,gridenergy_data["fields"]["Wsys"],str(current_conditions))
-            body= bytes(base, "utf-8")
-            response_code = 200
-
-        self.send_response(response_code)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-     
-    
-    def do_POST(self, *args, **kwargs):   
-        global gridenergy_data,temperature_data, dayahead_list, forecastpv_list
-
-        ctype, pdict = cgi.parse_header(self.headers.get('Content-Type'))
-       # print("do_POST",ctype,self.path)
-        postvars = [{}]
-        if ctype != 'application/json':
-            #print("#######self.path ",self.path )
-            #print("ctype",ctype)
-            return
-        try:
-            length = int(self.headers.get('Content-Length'))
-            #print(length) 
-            request_ = self.rfile.read(length)
-            obj = json.loads(request_.decode("UTF-8"))
-            #postvar = postvars[0]
-            #print("#######self.path ",self.path )
-            #print("request_",request_)
-            #print (pformat(postvars))
-            if self.path == "/telegraf" :
-                if "metrics" in obj:
-                    gridenergy_new = filtered_fields(obj["metrics"],"gridenergy",False)
-                    if len(gridenergy_new)==1: # there should be only one entry
-                        gridenergy_data = gridenergy_new[0]
-                        recalculate()
-                    
-                    temperature_new = filtered_fields(obj["metrics"],"onewire",True)
-                    if len(temperature_new)>0:
-                        temperature_data = temperature_new
-                        process_sensor_data(temperature_data)
-                        
-                    dayahead_new = filtered_fields(obj["metrics"],"dayahead",False,s.dayahead_file_name)
-                    if len(dayahead_new)>0:
-                        dayahead_list = dayahead_new
-    
-                    forecastpv_new = filtered_fields(obj["metrics"],"forecastpv",False,s.forecastpv_file_name)
-                    if len(forecastpv_new)>0:
-                        forecastpv_list = forecastpv_new
-                        
-           
-            body = bytes("thanks", "utf-8")
-
-            self.send_response(200)
-            self.send_header('Access-Control-Allow-Credentials', 'true')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            #self.send_header("Content-type", "text/xml")
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-length", str(len(body)))
-            self.end_headers()
-            
-            
-
-            self.wfile.write(body)
-
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
-            
-  
-  
-def start_control_web_server():  
-    control_web_port = 8080
-   
-    # populate json-objects broadcast_obj, destinations_obj, scenes_obj for web ui javascript
-    #todo: tämä voisi olla jossakin yhteisessä config-lukupaikassa, silloin kun arvot voi lukea ilman uudelleenkäynnistystä
-  
-
-    
-    #image_directory=  s.get_machine_value("working_directory", ".") + "/www/html/img/"  
- 
-    
-    def serve_forever(httpd):
-        try:
-            with httpd:  # to make sure httpd.server_close is called
-                print("server about to serve control requests (infinite request loop):")
-                httpd.serve_forever()
-                print("server left infinite request loop")
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
-    
-         
-    #Start the server.
-    socketserver.TCPServer.allow_reuse_address = True
-    httpd = socketserver.ThreadingTCPServer(('0.0.0.0', control_web_port),WebControlHandler)
-    address = "http://%s:%d" % (httpd.server_address, control_web_port)
-    print ("serving at control_web_port", control_web_port)
-
-    thread = Thread(target=serve_forever, args=(httpd, ))
-    thread.setDaemon(True)
-    thread.start()
-    print("Server started in another thread")
-
-    return httpd, address
-"""
 
 #aiohttp
 #async def now_new_data():
