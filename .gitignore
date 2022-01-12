@@ -1,13 +1,7 @@
 backup.sh
-broker.py
-ws.py
 data/dayahead.json
 data/forecastpv.json
 settings.py
-powerguru_old.py
 testgpio.py
-getfcstandprices.py
 __pycache__
-
-
-getfcstandprices.py
+settings/telegraf-powerguru.conf

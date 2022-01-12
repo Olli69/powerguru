@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 #Get solar energy forecast from www.bcdcenergia.fi and outputs it in format readable by Telegraf
+# Called few times a day (plus in startup) from Telegraf, results are resent to Powerguru and InfluDb
 
 import requests
 import json

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 #Gets tempererature from 1-wire DS18B20 sensors and outputs it in format readable by Telegraf
+# Called frequently from Telegraf, results are resent to Powerguru and InfluDb
+
 import json
 import settings as s
 import time
@@ -19,13 +21,13 @@ import re
   
 # service run on user "telegraf" context, so path will be manipulated 
 
-onewire_settings_filename =  s.replace_path_from_script(s.onewire_settings_filename)
-onewire_settings = None
+sensor_settings_filename =  s.replace_path_from_script(s.sensor_settings_filename)
+sensor_settings = None
 
 
 # Function that reads and returns the raw content of 'w1_slave' file
 def read_temp_raw(deviceCode):
-    w1DeviceFolder = onewire_settings["w1DeviceFolder"]
+    w1DeviceFolder = sensor_settings["w1DeviceFolder"]
     f = open(w1DeviceFolder + '/' + deviceCode + '/w1_slave' , 'r')
     lines = f.readlines()
     f.close()
@@ -53,7 +55,7 @@ def read_temp(deviceCode):
 
 def read_thermometers():
     # Get all devices
-    w1DeviceFolder = onewire_settings["w1DeviceFolder"]
+    w1DeviceFolder = sensor_settings["w1DeviceFolder"]
     w1Devices = glob(w1DeviceFolder + '/*/')
     # Create regular expression to filter only those starting with '28', which is thermometer
     w1ThermometerCode = re.compile(r'28-\d+')
@@ -74,11 +76,11 @@ def read_thermometers():
     # Return the array
     return fields
 
-
+# this could reset 1-wire if gpio 17 used as bus voltage input
 def check_lines():
-    global onewire_settings
-    w1DeviceFolder = onewire_settings["w1DeviceFolder"]
-    for sensor in onewire_settings["sensors"]:
+    global sensor_settings
+    w1DeviceFolder = sensor_settings["w1DeviceFolder"]
+    for sensor in sensor_settings["sensors"]:
         path = w1DeviceFolder + "/" + sensor["id"]
         if (os.path.isdir(path) == False):
             print ("trying to reset ", path)
@@ -87,18 +89,16 @@ def check_lines():
             GPIO.output(17, GPIO.LOW)
             time.sleep(3)
             GPIO.output(17, GPIO.HIGH)
-            time.sleep(5)
-        
+            time.sleep(5)      
     
 # report
 def onewire_to_telegraf():
-    global onewire_settings
-    
-    
+    global sensor_settings
+      
     
     try:
-        with open(onewire_settings_filename) as json_file:
-            onewire_settings= json.load(json_file)
+        with open(sensor_settings_filename) as json_file:
+            sensor_settings= json.load(json_file)
     except:
         print ("Cannot find settings file")
         exit(1)
@@ -111,8 +111,8 @@ def onewire_to_telegraf():
     if not thermometer_fields:
         return False
 
-    measurement = "temperature"
-    tag_name = "onewire"
+    measurement = "onewire"
+    tag_name = "temperature"
 
     try:       
             print_influxdb_format(
