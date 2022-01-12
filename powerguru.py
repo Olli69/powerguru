@@ -6,6 +6,7 @@ import json
 import os
 import signal
 #from threading import Thread
+from enum import Enum
 
 import settings as s
 
@@ -40,34 +41,20 @@ import ntpath
 """
 
 import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
+
+from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import SYNCHRONOUS
+
+
+# via Telegraf relay to influxDB
+ifclient = InfluxDBClient(url = "http://127.0.0.1:8086",token="")
+
 GPIO.setwarnings(False)
 #use GPIO-numbers to refer GPIO pins
 GPIO.setmode(GPIO.BCM)
 
 solarForecastBlocks = {"6" : 0, "12" : 0, "18" : 0, "24" : 0} 
 
-
-if s.influxType == 'cloud':
-    from influxdb_client import InfluxDBClient, Point, WritePrecision
-    from influxdb_client.client.write_api import SYNCHRONOUS
-else:
-    from influxdb import InfluxDBClient
-
-
-
-#TODO: checking...
-if s.influxType == 'cloud':
-    ifclient = InfluxDBClient(url=s.ifUrl, token=s.ifToken, org=s.ifOrg)
-else:
-    ifclient = InfluxDBClient(host=s.ifHost, port=s.ifPort, username=s.ifUsername, password=s.ifPassword, ssl=s.ifssl, verify_ssl=s.ifVerify_ssl, timeout=s.ifTimeout, database=s.ifDatabase)
-
-    
-try:
-    # Redis is an in-memory data structure store, used as a distributed, in-memory key–value database
-    # this is optional, values are not used yet
-    import redis 
-except ImportError:
-    redis = None 
 
 import settings as s #settings file
 
@@ -96,7 +83,7 @@ nettingPeriodEnergyPurchase = 0
 nettingPeriodMeasurementCount = 0
 
 
-onewire_settings = None
+sensor_settings = None
 #switches = None
 conditions = None
 channels_list = None
@@ -182,8 +169,6 @@ def setOutGPIO(gpio,enable,init=False):
 
      """       
     
-    
-    
  
 # This class handles line resources (phases) e.g.
 #TODO; disabling line capacity handling
@@ -267,7 +252,7 @@ class PowerSystem:
         if current_conditions:
             status["current_conditions"] = current_conditions
 
-        if dayahead_list:
+        if pricesAndForecast is not None:
             status["energyPriceSpot"] = pricesAndForecast.get("energyPriceSpot",None)
         else:
             status["energyPriceSpot"] = None
@@ -498,30 +483,11 @@ class Channel:
     
     
 #- - - - - - - - -
-"""
-# Function that returns array with IDs of all found thermometers
-def find_thermometers():
-    # Get all devices
-    w1DeviceFolder = onewire_settings["w1DeviceFolder"]
-    w1Devices = glob(w1DeviceFolder + '/*/')
-    # Create regular expression to filter only those starting with '28', which is thermometer
-    w1ThermometerCode = re.compile(r'28-\d+')
-    # Initialize the array
-    thermometers = []
-    # Go through all devices
-    for device in w1Devices:
-        # Read the device code
-        deviceCode = device[len(w1DeviceFolder)+1:-1]
-        # If the code matches thermometer code add it to the array
-        if w1ThermometerCode.match(deviceCode):
-            thermometers.append(deviceCode)
-    # Return the array
-    return thermometers
-"""
+
 
 # Function that reads and returns the raw content of 'w1_slave' file
 def read_temp_raw(deviceCode):
-    w1DeviceFolder = onewire_settings["w1DeviceFolder"]
+    w1DeviceFolder = sensor_settings["w1DeviceFolder"]
     f = open(w1DeviceFolder + '/' + deviceCode + '/w1_slave' , 'r')
     lines = f.readlines()
     f.close()
@@ -683,32 +649,7 @@ def readSettings(settings_filename=None):
         
 
         
-def get_machine_value (key=None,defaulValue=""):
-    if machineSettings is None:
-       # print("LUETAAN machineSettings")
-        _ = readSettings()
-    #else:
 
-def write_influxdb(measurement, tags, fields,time=datetime.now(timezone.utc)):      
-    try:
-        json_body = []
-        if mbus_read_ok:
-            json_body.append( {
-                 "measurement": measurement,
-                 "tags": tags,
-                "time":  time,
-                "fields": fields
-        })
-            
-        if s.influxType == 'cloud':
-            write_api = ifclient.write_api(write_options=SYNCHRONOUS)
-            write_api.write(s.ifBucket, s.ifOrg, json_body)
-        else:
-            ifclient.write_points(json_body)
-
-    except:
-         print ("Cannot write to influxDB", sys.exc_info())
-      
         
 def reportState(targetTempsReport,price_fields): 
     temperature_fields = {}
@@ -724,29 +665,6 @@ def reportState(targetTempsReport,price_fields):
         "fields": price_fields
         })
            
-        """   
-        for targetTemp in targetTempsReport:
-            temperature_fields[ targetTemp["code"]]= targetTemp["targetTemp"]
-
-        json_body.append( {
-        "measurement": "targettemp",
-        "time":  datetime.now(timezone.utc),
-        "fields": temperature_fields
-        })
-        """
-
-        """
-        for channel in channels:
-            state[channel.code] = channel.up
-      
-                
-        json_body.append( {
-        "measurement": "relaystate",
-        "time":  datetime.now(timezone.utc),
-        "fields": state
-        })
-        """
-        
         for channel in channels:
             channel_fields[channel.code]=  (1 if channel.up else 0)
         json_body.append( {
@@ -756,7 +674,6 @@ def reportState(targetTempsReport,price_fields):
         })
 
         
-        
         for condition_key,condition in conditions.items(): 
             condition_fields[condition_key]=  (1 if condition["enabled"] else 0)
             
@@ -765,17 +682,10 @@ def reportState(targetTempsReport,price_fields):
             "time":  datetime.now(timezone.utc),
             "fields": condition_fields
             })
-        
-        
-        
-        #pp.pprint(json_body)
-        if s.influxType == 'cloud':
-            write_api = ifclient.write_api(write_options=SYNCHRONOUS)
-            write_api.write(s.ifBucket, s.ifOrg, json_body)
-        else:
-            ifclient.write_points(json_body)
-        
-        
+
+        write_api = ifclient.write_api(write_options=SYNCHRONOUS)
+        write_api.write("", "", json_body)
+
        # print ("Wrote to influx")
     except:
          print ("Cannot write to influx", sys.exc_info())
@@ -936,32 +846,16 @@ def recalculate():
 
 def load_program_config(signum=None, frame=None):
     global actuators,sensorData,thermometers, powerSystem
-    global onewire_settings,conditions #,switches
+    global sensor_settings,conditions #,switches
     global dayahead_list, forecastpv_list
     global channels_list
     
     #TODO: read cached foracast and price info and check validity
 
-     #onewire
-    onewire_settings = readSettings(s.onewire_settings_filename)  
-    sensorData = SensorData(onewire_settings["sensors"])
-    #thermometers = find_thermometers()
-    """
-    found_new_sensors = False
-    for thermometer in thermometers:
-        if not sensorData.setEnabledById(thermometer,  True):
-            found_new_sensors = True
-            onewire_settings["sensors"].append( {"code":'s'+str(len(onewire_settings["sensors"])+1), "type": "1-wire", "id": thermometer, "name":"Automatically added"})
-    
-    
-    if found_new_sensors:
-        with open(onewire_settings_filename, 'w') as outfile:
-            json.dump(onewire_settings, outfile, indent=4) 
-        #reread
-        sensorData = SensorData(onewire_settings["sensors"])
-        for thermometer in thermometers:
-            sensorData.setEnabledById(thermometer,  True)       
-    """
+     #1-wire
+    sensor_settings = readSettings(s.sensor_settings_filename)  
+    sensorData = SensorData(sensor_settings["sensors"])
+
     #switches
     #switches = readSettings(switches_settings_filename) 
 
@@ -978,7 +872,7 @@ def load_program_config(signum=None, frame=None):
     conditions = readSettings(s.conditions_filename) 
 
  
-    print(onewire_settings)
+    print(sensor_settings)
     pp.pprint(sensorData.sensors)  
     
     powerSystem = PowerSystem()    
@@ -1120,19 +1014,19 @@ async def process_ws_msg(websocket, path):
             
 """
 def process_sensor_data(temperature_data):
-    global onewire_settings,sensorData
+    global sensor_settings,sensorData
     found_new_sensors = False
     for data_row in temperature_data:
         for sensor_id,value in data_row["fields"].items():         
             if not sensorData.setEnabledById(sensor_id,  True):
                 found_new_sensors = True
-                onewire_settings["sensors"].append( {"code":'s'+str(len(onewire_settings["sensors"])+1), "type": "1-wire", "id": sensor_id, "name":"Automatically added"})
+                sensor_settings["sensors"].append( {"code":'s'+str(len(sensor_settings["sensors"])+1), "type": "1-wire", "id": sensor_id, "name":"Automatically added"})
                 #reread
-                sensorData = SensorData(onewire_settings["sensors"])
+                sensorData = SensorData(sensor_settings["sensors"])
     
     if found_new_sensors: #save
-        with open(s.onewire_settings_filename, 'w') as outfile:
-            json.dump(onewire_settings, outfile, indent=4) 
+        with open(s.sensor_settings_filename, 'w') as outfile:
+            json.dump(sensor_settings, outfile, indent=4) 
        
          
     #now set values    
