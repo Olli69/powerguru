@@ -29,16 +29,7 @@ from aiohttp_sse import sse_response
 from datetime import datetime
 
 from threading import Thread, current_thread
-"""
-#control web server
-import http.server
-import socketserver
-import cgi
 
-from urllib.parse import urlparse
-from urllib.parse import parse_qs
-import ntpath
-"""
 
 import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
 
@@ -77,10 +68,10 @@ hourCumulativeEnergyPurchase = 0
 hourMeasurementCount = 0
 """
 #new version of ...
-nettingPreviousTotalEnergyPeriod = -999
-nettingPreviousTotalEnergy = -1
-nettingPeriodEnergyPurchase = 0 
-nettingPeriodMeasurementCount = 0
+netPreviousTotalEnergyPeriod = -999
+netPreviousTotalEnergy = -1
+netPeriodPurchased = 0 
+netPeriodMeasurementCount = 0
 
 
 sensor_settings = None
@@ -99,6 +90,7 @@ pricesAndForecast = None
 # get current prices and expected future solar, e.g. solar6h is solar within next 6 hours
 def getPriceAndForecast():
     global dayahead_list, forecastpv_list
+    global powerSystem
     
     dtnow = datetime.now()
     now_local = dtnow.astimezone(tz_local).isoformat()
@@ -132,14 +124,14 @@ def getPriceAndForecast():
                 if fcst_entry["timestamp"] < time.time()+(futureHours*3600):
                     solarForecastBlocks[sfbCode] += fcst_entry["fields"]["pvrefvalue"]
 
-    #print("jälkeen solarForecastBlocks", solarForecastBlocks)  
-        
-    #return_value =  {"transferPrice": transferPrice, "energyPrice" : energyPrice, "totalPrice" :totalPrice, "energyPriceSpot" : energyPriceSpot}
+
+    powerSystem.set_variable("powerguru","energyPriceSpot" , energyPriceSpot)
     return_value =  { "energyPriceSpot" : energyPriceSpot}
    
     for sfbCode,sfb in solarForecastBlocks.items():  
         blockCode = "solar{}h".format(sfbCode)
         return_value[blockCode] = sfb
+        powerSystem.set_variable("powerguru",blockCode , sfb)
     
     return return_value
 
@@ -177,6 +169,46 @@ class PowerSystem:
         self.lines = [ (1, 0),(2, 0),(3, 0)]
         self.lines_sorted = self.lines
         self.status_propagated = True
+        self.variables = {}
+
+    def set_variable(self,field_group,field_name,value):
+        field_code ="{}:{}".format(field_group,field_name)
+        self.variables[field_code] = {"value": value, "ts" : time.time(), "type" : "num"}
+
+    def print_variables(self):
+        print("PowerSystem.variables()")
+        for vkey,variable in self.variables.items():
+            print("{}={}".format(vkey,variable["value"]))
+
+    
+    def set_variables(self,new_values):
+        
+        field_group = new_values["name"]
+        for vkey,value in new_values["fields"].items():
+            self.set_variable(field_group,vkey,value)
+        
+        #print("*******set_variables********")
+        #pp.pprint(self.variables)
+        
+    def get_value(self,field_code,default_value = None):
+        #TODO: check if value is expired, expiration in variables settings file .. coming later
+        if field_code in self.variables:
+            if self.variables[field_code]["type"] == "str":
+                return "'{}'".format(self.variables[field_code]["value"])
+            else:
+                return self.variables[field_code]["value"]
+        else:
+            return default_value
+    
+    # adds pseudo variables like time 
+    def get_variables(self):
+        return_object = self.variables  
+        # pseudo variables date, time etc
+        return_object["powerguru:hhmm"] = {"value": datetime.now().strftime("%H%M"), "ts" : time.time(), "type" : "str"}
+        return_object["powerguru:mmdd"] = {"value": datetime.now().strftime("%m%d"), "ts" : time.time(), "type" : "str"}
+        return return_object.items()
+
+
 
     def set_status_unpropagated(self):
         self.status_propagated = False    
@@ -485,144 +517,54 @@ class Channel:
 #- - - - - - - - -
 
 
-# Function that reads and returns the raw content of 'w1_slave' file
-def read_temp_raw(deviceCode):
-    w1DeviceFolder = sensor_settings["w1DeviceFolder"]
-    f = open(w1DeviceFolder + '/' + deviceCode + '/w1_slave' , 'r')
-    lines = f.readlines()
-    f.close()
-    return lines
-
-# Function that reads the temperature from raw file content
-def read_temp(deviceCode):
-    # Read the raw temperature data
-    lines = read_temp_raw(deviceCode)
-    # Wait until the data is valid - end of the first line reads 'YES'
-    while lines[0].strip()[-3:] != 'YES':
-        time.sleep(0.2)
-        lines = read_temp_raw(deviceCode)
-    # Read the temperature, that is on the second line
-    equals_pos = lines[1].find('t=')
-    if equals_pos != -1:
-        temp_string = lines[1][equals_pos+2:]
-        # Convert the temperature number to Celsius
-        temp_c = float(temp_string) / 1000.0
-        # Convert the temperature to Fahrenheit
-        temp_f = temp_c * 9.0 / 5.0 + 32.0
-        # Return formatted sensor data
-        return {
-            'thermometerID': deviceCode,
-            'celsius': temp_c,
-            'fehrenheit': temp_f
-        }
-
-
-
 
 def sig_handler(signum, frame):
     pass
     exit(1)
     
     
-def check_conditions(importTot,pricesAndForecast):
+def check_conditions():
     ok_conditions = []
-    #global hourCumulativeEnergyPurchase
-    global nettingPeriodEnergyPurchase
-    global solarForecastBlocks
     global conditions
-    # get the standard UTC time  
-   
-
-    dtnow = datetime.now()
-
-   # local_dt = dtnow.replace(tzinfo=timezone.utc).astimezone(tz=None).isoformat()
-   # localtime = time.localtime(time.time())
-    now_local = dtnow.astimezone(tz_local).isoformat()
-   # print(now_local)
-    
-    local_day = now_local[5:10]
-    local_time = now_local[11:19]
-    print("Imported {:.2f}, local_day {:s}, local_time {:s}".format(importTot,local_day,local_time))
-    
-
+    global powerSystem
+  
+    #TODO: spotlowesthours - kuluvan päivän x halvinta tuntia, tässä pitäisi kyllä ottaa myös kuluneet
+    #voisi ottaa ko päivän kuluneet ja koko tiedetyn tulevaisuuden
     for conditionKey,condition in conditions.items(): # check 
-        # Condition is True if passing all the test i.e. not ending with "continue"   
-        if "netsales" in condition.keys(): # check netsales condition 
-            if s.nettingPeriodMinutes!= 0: #netting
-                netSalesNow = (nettingPeriodEnergyPurchase<0)
-            else: #no netting, use actual balance
-                netSalesNow =  (importTot< 0)
-                
-            if condition["netsales"] and not netSalesNow: 
-                continue # no net sales now, but should be 
-            elif not condition["netsales"] and netSalesNow:
-                continue # net sales now, but should not be
 
-        #TODO: spotlowesthours - kuluvan päivän x halvinta tuntia, tässä pitäisi kyllä ottaa myös kuluneet
-        #voisi ottaa ko päivän kuluneet ja koko tiedetyn tulevaisuuden
-        
-        if "spotAbove" in condition.keys():
-            if pricesAndForecast.get("energyPriceSpot",None) is None:
-                continue
-            if condition["spotAbove"]  >=  pricesAndForecast["energyPriceSpot"]:
-                continue
+        if "c" in condition:
+            condition_returned = test_condition(condition)  
+            if condition_returned: 
+                ok_conditions.append(conditionKey)      
 
-        if "spotBelow" in condition.keys():
-            if pricesAndForecast.get("energyPriceSpot",None) is None:
-                continue
-            if condition["spotBelow"] <= pricesAndForecast["energyPriceSpot"]:
-                continue
-
-      
-        
-        if "starttime" in condition.keys() and "endtime" in condition.keys(): # check time
-            if condition["starttime"] > condition["endtime"]: # assume condition reaches over midnight
-                if condition["endtime"] <local_time<condition["starttime"]:
-                    continue
-            elif (condition["endtime"] <local_time) or (local_time<condition["starttime"] ) :
-                    continue
-                    
-        if "dayfirst" in condition.keys() and "daylast" in condition.keys(): # check time
-            if condition["dayfirst"] > condition["daylast"]: # assume condition reaches over midnight
-                if condition["daylast"] <local_day<condition["dayfirst"]:
-                    continue
-            elif (condition["daylast"] <local_day) or (local_day<condition["dayfirst"] ) :
-                    continue
-                
-                
-        # use globals
-        for sfbCode,sfb in solarForecastBlocks.items():  
-            ckey = "solar{}above".format(str(sfbCode))
-            #print("ckey",ckey, sfb)
-            if ckey in condition.keys() and condition[ckey] >= sfb:
-                continue
-            ckey = "solar{}below".format(str(sfbCode))
-            #print("ckey",ckey, sfb)
-            if ckey in condition.keys() and condition[ckey] <= sfb:
-                continue
-            
-                
-        """        
-
-        if "solar12above" in condition.keys():
-            if condition["solar12above"] >= pricesAndForecast["solar12h"]:
-                continue 
-            
-        if "solar12below" in condition.keys():
-            if condition["solar12below"] < pricesAndForecast["solar12h"]:
-                continue 
-        """        
-           
-        # all tests passed (no "continue")                       
-        ok_conditions.append(conditionKey) # the condition is ok if not filtered out by any rule
-     
     for condition_key,condition in conditions.items(): 
         conditions[condition_key]["enabled"] = (condition_key in ok_conditions)
         
-        
-    
     pp.pprint (ok_conditions)
     return ok_conditions
+
+
+def test_condition(condition):
+    #print("#######")
+    eval_string = condition["c"]
+    # powerguru:time
+    for vkey,v in powerSystem.get_variables():
+        if vkey in eval_string:
+            variable_value = powerSystem.get_value(vkey,None)
+            if variable_value is not None:
+                eval_string = eval_string.replace(vkey,str(variable_value))
+            else:
+                print("Variable {} value was None:".format(vkey))
+                return False
+            
+    try:
+        eval_value = eval(eval_string,{})    
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
+        return False  
+    print("condition: ", condition.get("desc",""),eval_string, " returned:", eval_value)
+    return eval_value
 
 
 
@@ -698,7 +640,7 @@ def recalculate():
     global powerSystem, pricesAndForecast
     # old...
     #global previousTotalEnergyHour, previousTotalEnergy,hourCumulativeEnergyPurchase, hourMeasurementCount
-    global nettingPeriodEnergyPurchase, nettingPreviousTotalEnergy, nettingPreviousTotalEnergyPeriod,nettingPeriodMeasurementCount
+    global netPeriodPurchased, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
     global solarForecastBlocks
     global current_conditions
     
@@ -757,29 +699,25 @@ def recalculate():
         price_fields[ "purchaseNight"]= (importTot if importTot>0 else 0.0)
         price_fields[ "purchaseDay"]= 0.0
     
-    """
-    # cost
-    if importTot>0:
-        price_fields[ "cost"] = importTot*pricesAndForecast["totalPrice"]/100
-    else:
-        price_fields[ "cost"] = importTot*(pricesAndForecast["energyPriceSpot"]-s.spotMarginSales)/100
-    """
-    
+ 
   
     # new, todo: tähän tallennukset influxiin
     if s.nettingPeriodMinutes!= 0:
-        if nettingPreviousTotalEnergy == -1:
-            nettingPreviousTotalEnergy = cumulativeEnergy
+        if netPreviousTotalEnergy == -1:
+            netPreviousTotalEnergy = cumulativeEnergy
         currentNettingPeriod = int(time.time()/(s.nettingPeriodMinutes*60))
-        if nettingPreviousTotalEnergyPeriod != currentNettingPeriod:
-            nettingPreviousTotalEnergyPeriod =  currentNettingPeriod
-            nettingPeriodMeasurementCount = 0 
-        nettingPeriodEnergyPurchase = cumulativeEnergy-nettingPreviousTotalEnergy
-        nettingPeriodMeasurementCount += 1
-        if nettingPeriodMeasurementCount == 1:
-            nettingPreviousTotalEnergy = cumulativeEnergy
-            
-        #print("nettingPeriodEnergyPurchase",nettingPeriodEnergyPurchase,cumulativeEnergy,nettingPreviousTotalEnergy)
+        if netPreviousTotalEnergyPeriod != currentNettingPeriod:
+            netPreviousTotalEnergyPeriod =  currentNettingPeriod
+            netPeriodMeasurementCount = 0 
+        netPeriodPurchased = cumulativeEnergy-netPreviousTotalEnergy
+        netPeriodMeasurementCount += 1
+        if netPeriodMeasurementCount == 1:
+            netPreviousTotalEnergy = cumulativeEnergy
+        powerSystem.set_variable("powerguru","netPeriodPurchased" , netPeriodPurchased)
+        print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} netPeriodPurchased ".format(cumulativeEnergy,netPreviousTotalEnergy,netPeriodPurchased))
+
+
+        #print("netPeriodPurchased",netPeriodPurchased,cumulativeEnergy,netPreviousTotalEnergy)
 
     """
     #Old
@@ -801,7 +739,7 @@ def recalculate():
     #TODO: OVERLOAD CONTROL!!!    
     powerSystem.setLoad(loadsA[0],loadsA[1],loadsA[2])             
  
-    current_conditions = check_conditions(importTot,pricesAndForecast)
+    current_conditions = check_conditions()
 
     
     targetTempsReport = []
@@ -872,8 +810,8 @@ def load_program_config(signum=None, frame=None):
     conditions = readSettings(s.conditions_filename) 
 
  
-    print(sensor_settings)
-    pp.pprint(sensorData.sensors)  
+    #print(sensor_settings)
+    #pp.pprint(sensorData.sensors)  
     
     powerSystem = PowerSystem()    
     
@@ -1065,18 +1003,26 @@ async def index(request):
 #async def add_user(request: web.Request) -> web.Response:
 async def process_telegraf_post(request):
     global gridenergy_data, dayahead_list, forecastpv_list
+    global powerSystem
 
     obj = await request.json()
-    pp.pprint(obj)
+    #pp.pprint(obj)
    
+    #TODO: different metrics could be parametrized, so addional metrics (eg. PV inverter data) could be added without code changes
     if "metrics" in obj:
         gridenergy_new = filtered_fields(obj["metrics"],"gridenergy",False)
+        #this
         if len(gridenergy_new)==1: # there should be only one entry
+            #
+            powerSystem.set_variables(gridenergy_new[0])
+            powerSystem.print_variables() #debugging
             gridenergy_data = gridenergy_new[0]
+            #TODO: trigger recalculate also after other updates but wait thats all requests in the incoming Telegraf buffer are processed
             recalculate()
         
-        temperature_new = filtered_fields(obj["metrics"],"onewire",True)
+        temperature_new = filtered_fields(obj["metrics"],"onewire",False)
         if len(temperature_new)>0:
+            powerSystem.set_variables(temperature_new)
             temperature_data = temperature_new
             process_sensor_data(temperature_data)
             
@@ -1088,7 +1034,7 @@ async def process_telegraf_post(request):
         if len(forecastpv_new)>0:
             forecastpv_list = forecastpv_new
 
-    return web.Response(text=f"Thanks for your contibution!")
+    return web.Response(text=f"Thanks for your contibution Telegraf!")
 
        
 
@@ -1105,9 +1051,7 @@ def main(argv):
  
     signal.signal(signal.SIGINT, sig_handler)
     
-     #TODO: parameters
-    #start_control_web_server()  
-    
+    # Run Telegraf once to get up-to-date data
     run_telegraf_once_thread =  Thread(target=run_telegraf_once)
     run_telegraf_once_thread.start()
 
@@ -1120,16 +1064,11 @@ def main(argv):
    
     web.run_app(app, host='0.0.0.0', port=8080)
 
+    #TODO: this could be main loop where recalculation are started after new data arrived from Telegraf
     while True:
         pass
     
-    
 
-#    start_server = websockets.serve(process_ws_msg, 'localhost', 8765)
-#    asyncio.get_event_loop().run_until_complete(start_server) 
-#    asyncio.get_event_loop().run_forever()
-    
-    
 
 if __name__ == "__main__":
     main(sys.argv[1:])

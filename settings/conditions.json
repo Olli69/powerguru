@@ -1,63 +1,55 @@
 {
+	"netsalesnow": {
+		"desc": "More production than consumption, hetkellinen",
+		"c": "modbus:Wsys<0"
+	},
 	"netsales": {
-		"netsales": true,
-		"desc": "More production than consumption"
+		"desc": "More production than consumption, nettoperiodi",
+		"c": "powerguru:netPeriodPurchased<0"
 	},
 	"sunnydaycoming": {
-		"starttime": "04:00:00",
-		"endtime": "07:00:00",
-		"solar12above": 5.0,
-		"desc": "sunny day coming (do not overheat the boilers)"
+		"desc": "sunny day coming (do not overheat the boilers)",
+		"c": "powerguru:solar12h>5 and powerguru:hhmm > '0400' and powerguru:hhmm <'0700'"
 	},
 	"darkdaycoming": {
-		"starttime": "04:00:00",
-		"endtime": "07:00:00",
-		"solar12below": 5.0,
-		"desc": "dark day coming (heat the boilers, there will be no cheap energy today)"
+		"desc": "dark day coming (heat the boilers, there will be no cheap energy today)",
+		"c": "powerguru:solar12h<5 and powerguru:hhmm > '0400' and powerguru:hhmm <'0700'"
 	},
 	"morning": {
-		"starttime": "07:00:00",
-		"endtime": "10:00:00",
-		"desc": "varaajat levossa, aurinkoyösähköä odotellessa ainakin kesällä"
+		"desc": "varaajat levossa, aurinkosähköä odotellessa ainakin kesällä",
+		"c": "powerguru:hhmm > '0700' and powerguru:hhmm <'1000'"
 	},
 	"evening": {
-		"starttime": "18:30:00",
-		"endtime": "22:05:00",
-		"desc": "varaajat levossa, yösähköä odotellessa"
+		"desc": "varaajat levossa, yösähköä odotellessa",
+		"c": "powerguru:hhmm > '1830' and powerguru:hhmm <'2205'"
+	},
+	"night": {
+		"desc": "yöhinnoittelu",
+		"c": "powerguru:hhmm < '0700' or powerguru:hhmm >'2200'"
 	},
 	"summernight": {
-		"starttime": "22:00:00",
-		"endtime": "07:00:00",
-		"dayfirst": "02-15",
-		"daylast": "10-15",
-		"desc": ""
+		"desc": "kesäyö kalenterin mukaan",
+		"c": "(powerguru:hhmm < '0700' or powerguru:hhmm >'2200') and (powerguru:mmdd > '0214' and powerguru:mmdd < '1016')"
+
 	},
 	"winternight": {
-		"starttime": "22:00:00",
-		"endtime": "07:00:00",
-		"dayfirst": "10-16",
-		"daylast": "02-14",
-		"desc": ""
+		"desc": "talviyö kalenterin mukaan",
+		"c": "(powerguru:hhmm < '0700' or powerguru:hhmm >'2200') and (powerguru:mmdd < '0215' or powerguru:mmdd > '1015')"
 	},
 	"day": {
-		"starttime": "07:00:00",
-		"endtime": "22:00:00",
-		"desc": ""
+		"desc": "päivähinnoittelu",
+		"c": "powerguru:hhmm >= '0700' and powerguru:hhmm <'2200'"
 	},
 	"default": {
-		"starttime": "00:00:00",
-		"endtime": "23:59:59",
-		"desc": "Matches always"
+		"desc": "Matches always",
+		"c": "powerguru:hhmm >= '0000' and powerguru:hhmm <='2359'"
 	},
-		"spothigh": {
-		"spotAbove": 15.0,
-		"desc": "Spot price is high"
+	"spothigh": {
+		"desc": "Spot price is high",
+		"c": "powerguru:energyPriceSpot>15"
 	},
-		"spotlow": {
-		"spotBelow": 2.0,
-		"desc": "Spot price is low"
+	"spotlow": {
+		"desc": "Spot price is low",
+		"c": "powerguru:energyPriceSpot<4.0"
 	}
-	
-	
 }
-                  
