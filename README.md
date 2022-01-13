@@ -11,10 +11,12 @@ It calculates target temperatures of the heaters once in a minute and switches o
 ## Data architechture
 [Telegraf](https://github.com/influxdata/telegraf) is a plugin-driven server agent for collecting & reporting metrics. Telegraf gets metrics from sensors and other data sources through input plugins and forwards it to Powerguru and influxDB analytics database (optional) through output plugins. In addition to standard Telegraf plugins custom Powerguru plugins (see colors in the diagram) are used. 
 
+Powerguru is a multithreaded Python-program running as Linux service. Powerguru has a inbuild web-server (aiohttp) for communication with Telegraf and dashboard. Currently external devices (e.g. boilers) are controlled with Raspberry PI GPIO driven switches, but addional device interafaces, throug e.g. http API:s can be added.
+
 ![Data flow diagram](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagram.drawio.png?raw=true)
 
 ### Telegraf - Powerguru communication
-Telegraf [outputs.http plugin](https://github.com/influxdata/telegraf/blob/release-1.21/plugins/outputs/http/README.md) sends buffered metrics updates to Powerguru with http post to Powerguru inbuild web-server (aiohttp). Powerguru calculation data series are updated to an optional InfluxDB database via Telegraf proxy service [HTTP Listener v2 Input Plugin](https://github.com/influxdata/telegraf/blob/release-1.21/plugins/inputs/http_listener_v2/README.md) (inputs.influxdb_v2_listener).
+Telegraf [outputs.http plugin](https://github.com/influxdata/telegraf/blob/release-1.21/plugins/outputs/http/README.md) sends buffered metrics updates to Powerguru http interface. Powerguru calculation data series are updated to an optional InfluxDB database via Telegraf proxy service [inputs.influxdb_v2_listener](https://github.com/influxdata/telegraf/blob/release-1.21/plugins/inputs/http_listener_v2/README.md).
 
 ### Modbus energy meter
 Metrics from a Modbus enabled energy meter is fetched with [Telegraf Modbus Input Plugin](https://github.com/influxdata/telegraf/blob/master/plugins/inputs/modbus/README.md). The plugin support TCP and serial line configuration. Currently Carlo Gavazzi EM340 RS meter is supported by the [Telegraf config file](settings/telegraf-powerguru.conf).
