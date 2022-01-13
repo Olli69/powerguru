@@ -18,7 +18,7 @@ It calculates target temperatures of the heaters once in a minute and switches o
 Day-ahead spot prices are fetched from [EntsoE transparency platform](https://transparency.entsoe.eu/). Next day NordPool prices are available in afternoon. For plugin code see [entsoe_telegraf_pl.py](entsoe_telegraf_pl.py) .
 
 ### BCDC Energia
-BCDC Energia gives day-ahead solar-power forecast for specified locations in Finland. Data is fetched several times a day wi. 
+BCDC Energia gives day-ahead solar-power forecast for specified locations in Finland. Data is fetched several times a day. For plugin code see [bcdc_telegraf_pl.py](bcdc_telegraf_pl.py) .
 
 
 ## Concept
