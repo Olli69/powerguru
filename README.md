@@ -13,12 +13,20 @@ It calculates target temperatures of the heaters once in a minute and switches o
 
 ![Data flow diagram](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagram.drawio.png?raw=true)
 
+### Modbus energy meter
+Metrics from a Modbus enabled energy meter is fetched with [Telegraf Modbus Input Plugin](https://github.com/influxdata/telegraf/blob/master/plugins/inputs/modbus/README.md). The plugin support TCP and serial line configuration. Currently Carlo Gavazzi EM340 RS meter is supported by the [Telegraf config file](settings/telegraf-powerguru.conf).
+
+### 1-wire temperatore sensors
+Temperature data from 1-wire temperature sensor DS18B20 is supported. For plugin code see [onew_telegraf_pl.py](onew_telegraf_pl.py) .
 
 ### EntsoE
 Day-ahead spot prices are fetched from [EntsoE transparency platform](https://transparency.entsoe.eu/). Next day NordPool prices are available in afternoon. For plugin code see [entsoe_telegraf_pl.py](entsoe_telegraf_pl.py) .
 
 ### BCDC Energia
 BCDC Energia gives day-ahead solar-power forecast for specified locations in Finland. Data is fetched several times a day. For plugin code see [bcdc_telegraf_pl.py](bcdc_telegraf_pl.py) .
+
+### Solar Inverters
+Production data can be updated from solar (PV) inverters with a HTTP-api (e.g. Fronius Solar Api). [Telegraf HTTP input plugin] (https://github.com/influxdata/telegraf/blob/release-1.21/plugins/inputs/http/README.md)
 
 
 ## Concept
