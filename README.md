@@ -4,6 +4,7 @@ Mikäli olet kiinnostunut saamaan lisätietoa tästä voit lähettää tekijäll
 Ohjelma getfcstandprices.py hakee paikallisen aurinkoenergiaennusteen ja Nordpoolin day-ahead SPOT-tuntihinnat (vaatii ilmaisen API-avaimen). SPOT-hintoja ei vielä käytetä ohjauksessa, mutta ominaisuus on melko helppo lisätä ja tekijä mielellään on mukana tässä. Käytännössä hintaohjauksen voisi tehdä lisäämällä esimerkiksi ehtokriteereihin (laajentamalla funtiota check_conditions ) totuusarvomuuttujat  (boolean) spotlow5 (true, jos kuluva tunti kuuluu 5 halvimman tunnin joukkoon), jne.spotlow10, spothigh10, spothigh5 . Ehtoihin voisi tietysti myös lisätä myös absoluuttiseen hintaan viittaavat spotpricebelow and spotpriceabove-attribuutit, jolloin esim. "spotpricebelow" : 3.0 on voimassa kun SPOT-hinta on alle 3 c/kWh. jne .
 
 ## Idea
+TO BE UPDATED...
 Powerguru manages electric loads (especially 1 or 3 phase water heaters). It can heat up the boilers when then electricity is cheap, for example when you have excess solar power or nightime. It can also optimize water heating using solar energy forecast (http://www.bcdcenergia.fi/ for forecast in Finland). Current version can read RS485/Modbus enables electric meters and DS18B20 temperatare sensors. It can also fetch Nordpool day-ahead spot prices. 
 
 It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "conditions", which are enabled if all the criterias for the condition match.   Powerguru is tested with Raspberry Pi (2)
@@ -11,7 +12,9 @@ It calculates target temperatures of the heaters once in a minute and switches o
 ## Data architechture
 [Telegraf](https://github.com/influxdata/telegraf) is a plugin-driven server agent for collecting & reporting metrics. Telegraf gets metrics from sensors and other data sources through input plugins and forwards it to Powerguru and influxDB analytics database (optional) through output plugins. In addition to standard Telegraf plugins custom Powerguru plugins (see colors in the diagram) are used. 
 
-Powerguru is a multithreaded Python-program running as Linux service. Powerguru has a inbuild web-server (aiohttp) for communication with Telegraf and dashboard. Currently external devices (e.g. boilers) are controlled with Raspberry PI GPIO driven switches, but addional device interafaces, throug e.g. http API:s can be added.
+**Powerguru** is a multithreaded Python-program running as a Linux service, see details below. Powerguru has a inbuild web-server (aiohttp) for communication with Telegraf and dashboard. Currently external devices (e.g. boilers) are controlled with Raspberry PI GPIO driven switches, but addional device interfaces, throught e.g. http API:s can be added.
+
+[InfluxDB](https://www.influxdata.com/) is an open-source time series database . [Grafana](https://grafana.com/) is an open source analytics and interactive visualization web application. Analytics of collected metrics and data is optional. A cloud based service, e.g. [InfluxDB Cloud](https://www.influxdata.com/products/influxdb-cloud/) is probobly easiest to start with. If you like to host InfluxDB locally, use other storage media than a micro SD card, which is not designed for frequent writes. 
 
 ![Data flow diagram](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagram.drawio.png?raw=true)
 
@@ -31,10 +34,11 @@ Day-ahead spot prices are fetched from [EntsoE transparency platform](https://tr
 BCDC Energia gives day-ahead solar-power forecast for specified locations in Finland. Data is fetched several times a day. For plugin code see [bcdc_telegraf_pl.py](bcdc_telegraf_pl.py) .
 
 ### Solar Inverters
-Production data can be updated from solar (PV) inverters with a HTTP-api (e.g. Fronius Solar Api). [Telegraf HTTP input plugin] (https://github.com/influxdata/telegraf/blob/release-1.21/plugins/inputs/http/README.md)
+Production data can be updated from solar (PV) inverters with a HTTP-api (e.g. Fronius Solar Api). [Telegraf HTTP input plugin](https://github.com/influxdata/telegraf/blob/release-1.21/plugins/inputs/http/README.md)
 
 
 ## Concept
+TO BE UPDATED...
 Main program powerguru.py runs function doWork and does following once in a minute (parameter READ_INTERVAL) in 
 1. reads ModBus capable electic meter and temperature sensors .
 2. Insert new values to InfluxDB
