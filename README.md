@@ -11,7 +11,7 @@ It calculates target temperatures of the heaters once in a minute and switches o
 ## Data architechture
 [Telegraf](https://github.com/influxdata/telegraf) is a plugin-driven server agent for collecting & reporting metrics. Telegraf gets metrics from sensors and other data sources through input plugins and forwards it to Powerguru and influxDB analytics database (optional) through output plugins. In addition to standard Telegraf plugins custom Powerguru plugins (see colors in the diagram) are used. 
 
-![alt text](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagram.drawio.png?raw=true)
+![Data flow diagram](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagram.drawio.png?raw=true)
 
 
 ### EntsoE
