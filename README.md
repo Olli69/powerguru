@@ -10,7 +10,7 @@ Powerguru manages electric loads (especially 1 or 3 phase water heaters). It can
 It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "conditions", which are enabled if all the criterias for the condition match.   Powerguru is tested with Raspberry Pi (2)
 
 ## Data architechture
-[Telegraf](https://github.com/influxdata/telegraf) is a plugin-driven server agent for collecting & reporting metrics. Telegraf gets metrics from sensors and other data sources through input plugins and forwards it to Powerguru and influxDB analytics database (optional) through output plugins. In addition to standard Telegraf plugins custom Powerguru plugins (see colors in the diagram) are used. 
+[Telegraf](https://github.com/influxdata/telegraf) is a plugin-driven server agent for collecting & reporting metrics. Telegraf gets metrics from sensors and other data sources through input plugins and forwards it to Powerguru and influxDB analytics database (optional) through output plugins. In addition to standard Telegraf plugins, custom Powerguru Telegraf input plugins (see colors in the diagram) are used. 
 
 **Powerguru** is a multithreaded Python-program running as a Linux service, see details below. Powerguru has a inbuild web-server (aiohttp) for communication with Telegraf and dashboard. Currently external devices (e.g. boilers) are controlled with Raspberry PI GPIO driven switches, but addional device interfaces, throught e.g. http API:s can be added.
 
@@ -62,11 +62,16 @@ TO BE UPDATED...
 
 ### Files
 TO BE UPDATED...
-* settings.py - parameter file, use settings-example.py as a template
 * powerguru.py - main program file. Starts from command line:  python3 powerguru.py or run as systemd service (see powerguru.service file)
+* bcdc_telegraf_pl.py, entsoe_telegraf_pl.py, onew_telegraf_pl.py - custom Powerguru Telegraf input plugins
 * powerguru.service - systemd service template, edit and install if you like to run powerguru as daemon
-* README.md - this file, will be completed (if anybody is interested :) )
-* getfcstandprices.py - reads NordPool prices and BCDC solar forecast. You can schedule it with crontab, e.g. once in 4 hours:15 */4 * * * /usr/bin/python3.7 /home/pi/powerguru/getfcstandprices.py
+* README.md - this file, will be completed 
+* setting/channels.json  
+* setting/conditions.json  
+* setting/powerguru.json  
+* setting/sensors.json  
+* setting/telegraf-powerguru.conf
+
  
 
 ### Required Python components
@@ -114,10 +119,6 @@ DS18B20 sensors are wired and terminated (see one-wire wiring) and how to enable
 
 Sensors should be bind to warmest part of the pipeline (outside), so that it get as hot as possible (may silicon paste and insulation outside could help). Anyway keep in minds that sensor values will be lower than real water temperature.  See mounting example https://www.openheating.org/doc/faschingbauer/thermometers.html 
 
-
-
-## Credits
-If try to check out where the ModBus code was copied from...
 
 
 
