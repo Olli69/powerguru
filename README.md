@@ -8,8 +8,17 @@ Powerguru manages electric loads (especially 1 or 3 phase water heaters). It can
 
 It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "conditions", which are enabled if all the criterias for the condition match.   Powerguru is tested with Raspberry Pi (2)
 
-## Data flows
+## Data architechture
+[Telegraf](https://github.com/influxdata/telegraf) is a plugin-driven server agent for collecting & reporting metrics. Telegraf gets metrics from sensors and other data sources through input plugins and forwards it to Powerguru and influxDB analytics database (optional) through output plugins. In addition to standard Telegraf plugins custom Powerguru plugins (see colors in the diagram) are used. 
+
 ![alt text](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagram.drawio.png?raw=true)
+
+
+### EntsoE
+Day-ahead spot prices are fetched from [https://transparency.entsoe.eu/](EntsoE transparency platform). Next day NordPool prices are available in afternoon. For plugin code see [entsoe_telegraf_pl.py] .
+
+### BCDC Energia
+BCDC Energia gives day-ahead solar-power forecast for specified locations in Finland. Data is fetched several times a day wi. 
 
 
 ## Concept
@@ -32,8 +41,10 @@ Currently only (1 or 3 line) boilers/heaters are supported. Actuator defines GPI
 Currently only DS18B20 1-wire temperature sensors are supported. Sensors are identified by id and  defined in settings.py file.
 
 ## Installation
+TO BE UPDATED...
 
 ### Files
+TO BE UPDATED...
 * settings.py - parameter file, use settings-example.py as a template
 * powerguru.py - main program file. Starts from command line:  python3 powerguru.py or run as systemd service (see powerguru.service file)
 * powerguru.service - systemd service template, edit and install if you like to run powerguru as daemon
@@ -43,7 +54,7 @@ Currently only DS18B20 1-wire temperature sensors are supported. Sensors are ide
 
 ### Required Python components
 
-
+TO BE UPDATED...
 todo: one line, updagrade
 sudo apt-get install libatlas-base-dev python3-pip
 
@@ -63,6 +74,7 @@ GPIO numbers are defined in _actuators_ list in file _settings.py_ .
     RPi GND   -------- 
     
 #### Electricity meter reading with Modbus
+OR USE USB DONGLE... will be updated
 Use raspi-config to disable serial console and enable serial port.
 
      RPi GPIO14 (TXD)  --------   RX               ---D+----
