@@ -66,11 +66,12 @@
                 var stateStr = '<b>' + result.current_conditions.join('</b>, <b>')+'</b>';
                 $("#status").append("<tr><td>Current states</td><td>" + stateStr + "</td></tr>");       
             }
-            //alert(result);
+            /*alert(result);
             if (result.energyPriceSpot) {
                 $("#status").append(`<tr><td>spot-price</td><td>${Math.round(result.energyPriceSpot*100)/100} c/kWh </td></tr>`);  
             }
-            
+            */
+           
             $("#status").append("</table>");
             $("#status").append("<h2>Channels</h2><table>");
             $("#status").append("<tr><td></td><td>channel</td><td></td><td>state info</td></tr>");

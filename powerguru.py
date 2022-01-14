@@ -105,6 +105,9 @@ def aggregate_dayahead_prices():
         dayaheadWindowBlocks[bCode] = None
         rank = get_current_period_rank(int(bCode))
         variable_code = "spotPriceRank{}h".format(bCode)
+
+        print("variable ",variable_code, ", rank ", rank )
+
         powerSystem.set_variable(variable_code , rank)
 
 def aggregate_solar_forecast():
@@ -631,11 +634,16 @@ def get_spot_sliding_window_periods(current_period_start_ts, window_duration_hou
     max_dayahead_time = 0
     for price_entry in dayahead_list:
         min_dayahead_time = min(min_dayahead_time,price_entry["timestamp"])
-        max_dayahead_time = max(max_dayahead_time,price_entry["timestamp"])        
+        max_dayahead_time = max(max_dayahead_time,price_entry["timestamp"])      
+
 
     window_end_excl = min(current_period_start_ts + window_duration_hours*3600,max_dayahead_time)
     window_start_incl = window_end_excl-window_duration_hours*3600
-    
+    print("current_period_start_ts", current_period_start_ts)
+    print("dayahead_list ts range",min_dayahead_time, max_dayahead_time)
+    print("window_start_incl  -  window_end_excl",window_start_incl, window_end_excl)
+
+
     entry_window = []
     for price_entry in dayahead_list:
         if window_start_incl <= price_entry["timestamp"]  and price_entry["timestamp"] < window_end_excl:
@@ -660,7 +668,8 @@ def get_current_period_rank(window_duration_hours):
             pp.pprint(price_window_sorted)
             return rank
         rank += 1
-
+    
+    print("****Cannot find current_period_start_ts in the window", current_period_start_ts)
     return None
 
 

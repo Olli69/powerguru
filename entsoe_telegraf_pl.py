@@ -49,12 +49,11 @@ def getNordPoolSPOTfromEntsoEU():
 
     start1 = tz_local.localize(dt)
     end1 = pd.Timestamp(dt,tz=s.timeZoneLocal)
-    end1 = end1 + timedelta(days=1)
+    end1 = end1 + timedelta(days=3) # can be a bit longer in the future, you get what you get
 
     #print ("nowdt.hour = {:d}".format(nowdt.hour))
-    if (nowdt.hour>11): #query next day
-        #start1 = start1 + timedelta(days=1)
-        end1 = end1 + timedelta(days=1)
+    #if (nowdt.hour>11): #query next day
+    #    end1 = end1 + timedelta(days=1)
             
    
     country_code = s.NordPoolPriceArea  
