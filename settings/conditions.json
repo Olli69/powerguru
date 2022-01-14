@@ -51,6 +51,10 @@
 	"spotpeak12h": {
 		"desc": "4 most expensive spot prices in 12h window",
 		"c": "spotPriceRank12h>8"
+	},
+	"cheapest24h": {
+		"desc": "Cheapest spot price in 24 h window",
+		"c": "spotPriceRank24h==1"
 	}
 
 }
