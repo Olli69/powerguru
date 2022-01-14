@@ -2,13 +2,13 @@
     "w1DeviceFolder": "/sys/bus/w1/devices",
     "sensors": [
         {
-            "code": "s1",
+            "code": "sensor1",
             "type": "1-wire",
             "id": "28-0316a2792d26",
             "name": "Tulistus"
         },
         {
-            "code": "s2",
+            "code": "sensor2",
             "type": "1-wire",
             "id": "28-0319a2795084",
             "name": "Syöttö"

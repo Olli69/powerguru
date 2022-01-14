@@ -77,23 +77,33 @@
             $.each(result.channels, function (i, field) {
                 targetText = "";
                 if (field.target && field.up) {
-                    if (field.target.forceOn) {
-                        targetText = `<b>${field.target.condition}</b><br> always on`;      
-                    }
-                    else if (!field.target.reached) {
-                        targetText = `<b>${field.target.condition}</b><br>${field.target.sensor}: ${field.target.sersorValue} &deg;C => ${field.target.targetTemp}`;  
-                    }
+                    targetText = `reached if: ${field.target.reachedWhen}`; 
                 }
-                $("#status").append(`<tr><td class="code">${field.code}</td><td>${field.name} </td><td>${isUpString(field.up)}</td><td> ${targetText}</td></tr>`);
+                $("#status").append(`<tr><td class="code">${field.code}</td><td>${field.name} </td><td><b>${isUpString(field.up)}</b></td><td> ${targetText}</td></tr>`);
 
             });
             $("#status").append("</table>");
-
+            /*
             $("#status").append("<h2>Sensors</h2><table>");
             $.each(result.sensors, function (i, field) {
                 $("#status").append(`<tr><td class="code">${field.code}</td><td> ${field.name}</td><td> ${field.value} &deg;C</td></tr>`);
             });
             $("#status").append("</table>");
+            */
+
+            $("#status").append("<h2>Variables</h2><table>");
+            $.each(result.variables, function (i, field) {
+                if (field.type=='str') {
+                    showValue = "'" + field.value + "'";
+                }
+                else {
+                    showValue = field.value ;
+                }
+               // $("#status").append(`<tr><td class="code">${field.code}</td><td> ${field.value}</td><td>( ${field.type})</td></tr>`);
+                $("#status").append(`<tr><td class="code">${field.code}</td><td> ${showValue}</td></tr>`);
+            });
+            $("#status").append("</table>");
+
             $("#status").append("<h2>Updates</h2><table>");
             $("#status").append("<tr><td>data</td><td>updated</td><td>last timestamp</td></tr>");
             $.each(result.updates, function (i, field) {

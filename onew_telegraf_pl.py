@@ -77,7 +77,8 @@ def read_thermometers():
     return fields
 
 # this could reset 1-wire if gpio 17 used as bus voltage input
-def check_lines():
+#TODO: set parameters
+def reset_onewire():
     global sensor_settings
     w1DeviceFolder = sensor_settings["w1DeviceFolder"]
     for sensor in sensor_settings["sensors"]:
@@ -103,7 +104,7 @@ def onewire_to_telegraf():
         print ("Cannot find settings file")
         exit(1)
     
-    #check_lines()
+    #reset_onewire() #koska ajettaisiin
 
     thermometer_fields = read_thermometers()
     #print(thermometer_fields)

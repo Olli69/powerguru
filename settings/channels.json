@@ -11,28 +11,23 @@
 		"targets": [
 			{
 				"condition": "netsales",
-				"sensor": "s1",
-				"valueabove": 90
+				"reachedWhen" :"sensor1>90"
 			},
 			{
 				"condition": "darkdaycoming",
-				"sensor": "s1",
-				"valueabove": 70
+				"reachedWhen" :"sensor1>70"
 			},
 			{
 				"condition": "sunnydaycoming",
-				"sensor": "s1",
-				"valueabove": 50
+				"reachedWhen" :"sensor1>50"
 			},
 			{
 				"condition": "evening",
-				"sensor": "s1",
-				"valueabove": 50
+				"reachedWhen" :"sensor1>50"
 			},
 			{
 				"condition": "default",
-				"sensor": "s1",
-				"valueabove": 60
+				"reachedWhen" :"sensor1>60"
 			}
 		]
 	},
@@ -48,13 +43,11 @@
 		"targets": [
 			{
 				"condition": "netsales",
-				"sensor": "s2",
-				"valueabove": 90
+				"reachedWhen" :"sensor2>90"
 			},
 			{
 				"condition": "default",
-				"sensor": "s2",
-				"valueabove": 10
+				"reachedWhen" :"sensor2>10"
 			}
 		]
 	},
@@ -68,11 +61,11 @@
 		"targets": [
 			{
 				"condition": "netsales",
-				"forceOn": true
+				"reachedWhen" :"False"
 			},
 			{
 				"condition": "default",
-				"forceOn": true
+				"reachedWhen" :"False"
 			}
 		]
 	},
@@ -86,11 +79,11 @@
 		"targets": [
 			{
 				"condition": "netsales",
-				"forceOn": true
+				"reachedWhen" :"False"
 			},
 			{
 				"condition": "default",
-				"forceOn": false
+				"reachedWhen" :"True"
 			}
 		]
 	},
@@ -104,11 +97,11 @@
 		"targets": [
 			{
 				"condition": "netsales",
-				"forceOn": true
+				"reachedWhen" :"False"
 			},
 			{
 				"condition": "default",
-				"forceOn": false
+				"reachedWhen" :"True"
 			}
 		]
 	},

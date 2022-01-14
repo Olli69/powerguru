@@ -1,55 +1,51 @@
 {
-	"netsalesnow": {
-		"desc": "More production than consumption, hetkellinen",
-		"c": "modbus:Wsys<0"
-	},
 	"netsales": {
 		"desc": "More production than consumption, nettoperiodi",
-		"c": "powerguru:netPeriodPurchased<0"
+		"c": "purchasedEnergyPeriodNet<0"
 	},
 	"sunnydaycoming": {
 		"desc": "sunny day coming (do not overheat the boilers)",
-		"c": "powerguru:solar12h>5 and powerguru:hhmm > '0400' and powerguru:hhmm <'0700'"
+		"c": "solar12h>5 and hhmm > '0400' and hhmm <'0700'"
 	},
 	"darkdaycoming": {
 		"desc": "dark day coming (heat the boilers, there will be no cheap energy today)",
-		"c": "powerguru:solar12h<5 and powerguru:hhmm > '0400' and powerguru:hhmm <'0700'"
+		"c": "solar12h<5 and hhmm > '0400' and hhmm <'0700'"
 	},
 	"morning": {
 		"desc": "varaajat levossa, aurinkosähköä odotellessa ainakin kesällä",
-		"c": "powerguru:hhmm > '0700' and powerguru:hhmm <'1000'"
+		"c": "hhmm > '0700' and hhmm <'1000'"
 	},
 	"evening": {
 		"desc": "varaajat levossa, yösähköä odotellessa",
-		"c": "powerguru:hhmm > '1830' and powerguru:hhmm <'2205'"
+		"c": "hhmm > '1830' and hhmm <'2205'"
 	},
-	"night": {
+	"night": { 
 		"desc": "yöhinnoittelu",
-		"c": "powerguru:hhmm < '0700' or powerguru:hhmm >'2200'"
+		"c": "hhmm < '0700' or hhmm >'2200'"
 	},
 	"summernight": {
 		"desc": "kesäyö kalenterin mukaan",
-		"c": "(powerguru:hhmm < '0700' or powerguru:hhmm >'2200') and (powerguru:mmdd > '0214' and powerguru:mmdd < '1016')"
+		"c": "(hhmm < '0700' or hhmm >'2200') and (mmdd > '0214' and mmdd < '1016')"
 
 	},
 	"winternight": {
 		"desc": "talviyö kalenterin mukaan",
-		"c": "(powerguru:hhmm < '0700' or powerguru:hhmm >'2200') and (powerguru:mmdd < '0215' or powerguru:mmdd > '1015')"
+		"c": "(hhmm < '0700' or hhmm >'2200') and (mmdd < '0215' or mmdd > '1015')"
 	},
 	"day": {
 		"desc": "päivähinnoittelu",
-		"c": "powerguru:hhmm >= '0700' and powerguru:hhmm <'2200'"
+		"c": "hhmm >= '0700' and hhmm <'2200'"
 	},
 	"default": {
 		"desc": "Matches always",
-		"c": "powerguru:hhmm >= '0000' and powerguru:hhmm <='2359'"
+		"c": "hhmm >= '0000' and hhmm <='2359'"
 	},
 	"spothigh": {
 		"desc": "Spot price is high",
-		"c": "powerguru:energyPriceSpot>15"
+		"c": "energyPriceSpot>15"
 	},
 	"spotlow": {
 		"desc": "Spot price is low",
-		"c": "powerguru:energyPriceSpot<4.0"
+		"c": "energyPriceSpot<4.0"
 	}
 }

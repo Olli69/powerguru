@@ -70,7 +70,7 @@ hourMeasurementCount = 0
 #new version of ...
 netPreviousTotalEnergyPeriod = -999
 netPreviousTotalEnergy = -1
-netPeriodPurchased = 0 
+purchasedEnergyPeriodNet = 0 
 netPeriodMeasurementCount = 0
 
 
@@ -125,13 +125,13 @@ def getPriceAndForecast():
                     solarForecastBlocks[sfbCode] += fcst_entry["fields"]["pvrefvalue"]
 
 
-    powerSystem.set_variable("powerguru","energyPriceSpot" , energyPriceSpot)
+    powerSystem.set_variable("energyPriceSpot" , round(energyPriceSpot,3))
     return_value =  { "energyPriceSpot" : energyPriceSpot}
    
     for sfbCode,sfb in solarForecastBlocks.items():  
         blockCode = "solar{}h".format(sfbCode)
         return_value[blockCode] = sfb
-        powerSystem.set_variable("powerguru",blockCode , sfb)
+        powerSystem.set_variable(blockCode , sfb)
     
     return return_value
 
@@ -160,7 +160,7 @@ def setOutGPIO(gpio,enable,init=False):
             break
 
      """       
-    
+     
  
 # This class handles line resources (phases) e.g.
 #TODO; disabling line capacity handling
@@ -171,8 +171,7 @@ class PowerSystem:
         self.status_propagated = True
         self.variables = {}
 
-    def set_variable(self,field_group,field_name,value):
-        field_code ="{}:{}".format(field_group,field_name)
+    def set_variable(self,field_code,value):
         self.variables[field_code] = {"value": value, "ts" : time.time(), "type" : "num"}
 
     def print_variables(self):
@@ -182,10 +181,10 @@ class PowerSystem:
 
     
     def set_variables(self,new_values):
-        
         field_group = new_values["name"]
         for vkey,value in new_values["fields"].items():
-            self.set_variable(field_group,vkey,value)
+            vcode = "{}:{}".format(field_group,vkey)
+            self.set_variable(vcode,value)
         
         #print("*******set_variables********")
         #pp.pprint(self.variables)
@@ -204,8 +203,8 @@ class PowerSystem:
     def get_variables(self):
         return_object = self.variables  
         # pseudo variables date, time etc
-        return_object["powerguru:hhmm"] = {"value": datetime.now().strftime("%H%M"), "ts" : time.time(), "type" : "str"}
-        return_object["powerguru:mmdd"] = {"value": datetime.now().strftime("%m%d"), "ts" : time.time(), "type" : "str"}
+        return_object["hhmm"] = {"value": datetime.now().strftime("%H%M"), "ts" : time.time(), "type" : "str"}
+        return_object["mmdd"] = {"value": datetime.now().strftime("%m%d"), "ts" : time.time(), "type" : "str"}
         return return_object.items()
 
 
@@ -267,9 +266,14 @@ class PowerSystem:
         if set_status_propagated:
             self.status_propagated = True  
         
-        status = {"channels": [], "updates":[], "sensors":[], "current_conditions":None}
+        status = {"channels": [], "updates":[], "sensors":[], "variables":[], "current_conditions":None}
+
         for channel in channels:
             status["channels"].append({ "code" : channel.code, "name" : channel.name, "up":  channel.up, "target" : channel.target })
+        
+        for variable_code,variable in powerSystem.get_variables():
+            status["variables"].append({ "code" : variable_code, "value" : variable["value"], "ts":  variable["ts"], "type" : variable["type"] })
+
 
         for update_key, update_values in data_updates.items():
             updated_dt = (tz_utc.localize(datetime.utcnow())-update_values["updated"])
@@ -318,9 +322,12 @@ class SensorData:
         return False
          
     def setValueById(self,id,value):    
+        global powerSystem
         for sensor in self.sensors:
             if sensor["id"] == id:
                 sensor["value"]= value
+                # set sensor value to variables, so it can be used in conditions
+                powerSystem.set_variable(sensor["code"],round(value,1))
                 return
                 
     def getValueByCode(self,code):    
@@ -351,6 +358,8 @@ class Channel:
         self.code = code #ch + 1-indexed nbr
         self.name = data["name"]
         self.gpio = data["gpio"]
+
+        self.t = data.get("reachedWhen",None)
         
         self.loadW =  data.get("loadW",0)
         self.up = False
@@ -394,7 +403,7 @@ class Channel:
         self.targets = [] 
         if "targets" in data:
             for target in data["targets"]:
-                tn = {"condition" : target["condition"], "sensor" : target.get("sensor",None), "valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
+                tn = {"condition" : target["condition"], "sensor" : target.get("sensor",None), "reachedWhen": target.get("reachedWhen",None),"valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
                 self.targets.append(tn) 
         """
         print()
@@ -407,43 +416,26 @@ class Channel:
         print()
         """
     
-
     
-    def getTarget(self,conditionList):
-        # get first matching
+    def getTarget(self,current_conditions):
+        # get first channel target where condition is matching
         for target in self.targets:
-            if target["condition"] in conditionList:
-                sersorValue = sensorData.getValueByCode(target["sensor"])
+            if target["condition"] in current_conditions:
+                #print("target condition is in current conditions",target["condition"])
+                # uusi versio tulossa tähän
+                # yksinkertaista iffittelyä lopullisessa
                 
-                forceOn = target.get("forceOn",None)
-                if forceOn is not None:
-                    targetReached = not forceOn   
-                    # print("getTarget forceOn",target["condition"], "targetReached:", targetReached)
-                    return {"condition" : target["condition"],"reached":targetReached, "error": False, "forceOn":forceOn}
-     
-                else:
-                    if sersorValue is None:
-                        return {"condition" : target["condition"],"reached":None, "error": True, "sersorValue":None,  "sensor" : None}
-      
-                    # now we know that condition match and sensor has a value, so we check if the target is reached 
-                    targetReached = True
-                    valueabove = target.get("valueabove",None)
-                    valuebelow = target.get("valuebelow",None)
-                
-                    targetTemp = valueabove if valueabove is not None else valuebelow
-                    
-                    if target["valueabove"] is not None:
-                        if sersorValue< target["valueabove"]:
-                            targetReached = False
-                    
-                    if targetReached and target["valuebelow"] is not None:
-                        if sersorValue> target["valuebelow"]:
-                            targetReached = False
-                            
-                    return {"condition" : target["condition"],"reached":targetReached, "error": False, "sensor" : target["sensor"]
-                            , "sersorValue":sersorValue,"actuatorCode":self.code,"valueabove" : valueabove,"valuebelow":valuebelow, "targetTemp" : targetTemp}
+                if "reachedWhen" in target and target["reachedWhen"] is not None:
+                    target_reached,error_in_test = test_formula( target["reachedWhen"],self.name+ ":"  +target["condition"]  )  
+                    if error_in_test: #possibly error in target t, try next one (should we panic and break )
+                        #TODO: error in formula (e.g. wrong variable) should be reported somehow - error list...
+                        continue # try next target
+                    else: #found first matching target
+                        # käytetään  reached, condition 
+                        return {"condition" : target["condition"],"reached":target_reached,"reachedWhen": target["reachedWhen"] }    
+
         
-        return {"condition" : None,"reached":True, "error": False} # no matching target
+        return {"condition" : None,"reached":True} # no matching target
     
     def getLine(self,l):
         for line in self.lines:
@@ -530,12 +522,11 @@ def check_conditions():
   
     #TODO: spotlowesthours - kuluvan päivän x halvinta tuntia, tässä pitäisi kyllä ottaa myös kuluneet
     #voisi ottaa ko päivän kuluneet ja koko tiedetyn tulevaisuuden
-    for conditionKey,condition in conditions.items(): # check 
-
+    for condition_key,condition in conditions.items(): # check 
         if "c" in condition:
-            condition_returned = test_condition(condition)  
-            if condition_returned: 
-                ok_conditions.append(conditionKey)      
+            condition_returned, error_in_test = test_formula( condition["c"],condition_key)  
+            if condition_returned and not error_in_test: 
+                ok_conditions.append(condition_key)      
 
     for condition_key,condition in conditions.items(): 
         conditions[condition_key]["enabled"] = (condition_key in ok_conditions)
@@ -544,9 +535,10 @@ def check_conditions():
     return ok_conditions
 
 
-def test_condition(condition):
+def test_formula(formula,info):
+    #returns: value,isError
     #print("#######")
-    eval_string = condition["c"]
+    eval_string = formula
     # powerguru:time
     for vkey,v in powerSystem.get_variables():
         if vkey in eval_string:
@@ -555,16 +547,18 @@ def test_condition(condition):
                 eval_string = eval_string.replace(vkey,str(variable_value))
             else:
                 print("Variable {} value was None:".format(vkey))
-                return False
+                return False, True
             
     try:
         eval_value = eval(eval_string,{})    
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
-        return False  
-    print("condition: ", condition.get("desc",""),eval_string, " returned:", eval_value)
-    return eval_value
+        print("eval_string: ",eval_string)
+        return False, True  
+
+    #print("formula {},  [{}] => {}".format(info,eval_string, eval_value))
+    return eval_value, False 
 
 
 
@@ -593,7 +587,7 @@ def readSettings(settings_filename=None):
         
 
         
-def reportState(targetTempsReport,price_fields): 
+def reportState(price_fields): 
     temperature_fields = {}
     state = {}
     condition_fields = {}
@@ -640,7 +634,7 @@ def recalculate():
     global powerSystem, pricesAndForecast
     # old...
     #global previousTotalEnergyHour, previousTotalEnergy,hourCumulativeEnergyPurchase, hourMeasurementCount
-    global netPeriodPurchased, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
+    global purchasedEnergyPeriodNet, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
     global solarForecastBlocks
     global current_conditions
     
@@ -709,15 +703,15 @@ def recalculate():
         if netPreviousTotalEnergyPeriod != currentNettingPeriod:
             netPreviousTotalEnergyPeriod =  currentNettingPeriod
             netPeriodMeasurementCount = 0 
-        netPeriodPurchased = cumulativeEnergy-netPreviousTotalEnergy
+        purchasedEnergyPeriodNet = cumulativeEnergy-netPreviousTotalEnergy
         netPeriodMeasurementCount += 1
         if netPeriodMeasurementCount == 1:
             netPreviousTotalEnergy = cumulativeEnergy
-        powerSystem.set_variable("powerguru","netPeriodPurchased" , netPeriodPurchased)
-        print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} netPeriodPurchased ".format(cumulativeEnergy,netPreviousTotalEnergy,netPeriodPurchased))
+        powerSystem.set_variable("purchasedEnergyPeriodNet" , purchasedEnergyPeriodNet)
+        print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
 
 
-        #print("netPeriodPurchased",netPeriodPurchased,cumulativeEnergy,netPreviousTotalEnergy)
+        #print("purchasedEnergyPeriodNet",purchasedEnergyPeriodNet,cumulativeEnergy,netPreviousTotalEnergy)
 
     """
     #Old
@@ -742,13 +736,11 @@ def recalculate():
     current_conditions = check_conditions()
 
     
-    targetTempsReport = []
-    
-    #TODO:miksi eri loopit, randomin takia?
+    #TODO:miksi eri loopit, randomin takia?, vai jäänne
     for channel in channels:
         target = channel.getTarget(current_conditions)
-        targetTemp = target.get("targetTemp",None)
-        targetTempsReport.append({"code": channel.code,"targetTemp":targetTemp} ) 
+        #print(channel.name, " got target: ",target)
+    
   
     random_channels = channels.copy()
     random.seed()
@@ -777,7 +769,7 @@ def recalculate():
     powerSystem.set_status_unpropagated()
     # export to influxDB
     #TODO: write current_conditions etc calculated  - price_fields - fields to influx
-    reportState(targetTempsReport,price_fields)
+    reportState(price_fields)
 
 
 
@@ -954,11 +946,12 @@ async def process_ws_msg(websocket, path):
 def process_sensor_data(temperature_data):
     global sensor_settings,sensorData
     found_new_sensors = False
+    # check if there are new sensors not found in the sensor settings 
     for data_row in temperature_data:
         for sensor_id,value in data_row["fields"].items():         
             if not sensorData.setEnabledById(sensor_id,  True):
                 found_new_sensors = True
-                sensor_settings["sensors"].append( {"code":'s'+str(len(sensor_settings["sensors"])+1), "type": "1-wire", "id": sensor_id, "name":"Automatically added"})
+                sensor_settings["sensors"].append( {"code":'sensor'+str(len(sensor_settings["sensors"])+1), "type": "1-wire", "id": sensor_id, "name":"Automatically added"})
                 #reread
                 sensorData = SensorData(sensor_settings["sensors"])
     
@@ -1014,15 +1007,15 @@ async def process_telegraf_post(request):
         #this
         if len(gridenergy_new)==1: # there should be only one entry
             #
-            powerSystem.set_variables(gridenergy_new[0])
+            #powerSystem.set_variables(gridenergy_new[0])
             powerSystem.print_variables() #debugging
             gridenergy_data = gridenergy_new[0]
             #TODO: trigger recalculate also after other updates but wait thats all requests in the incoming Telegraf buffer are processed
             recalculate()
         
-        temperature_new = filtered_fields(obj["metrics"],"onewire",False)
+        temperature_new = filtered_fields(obj["metrics"],"temperature",False)
         if len(temperature_new)>0:
-            powerSystem.set_variables(temperature_new)
+            #powerSystem.set_variables(temperature_new)
             temperature_data = temperature_new
             process_sensor_data(temperature_data)
             
