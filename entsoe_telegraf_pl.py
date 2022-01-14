@@ -32,26 +32,30 @@ tz_local = pytz.timezone(s.timeZoneLocal)
 #part of the code from https://github.com/EnergieID/entsoe-py
 def getNordPoolSPOTfromEntsoEU():
     if not s.EntsoEUAPIToken:
-    	print ("EntsoEU API Token undefined")
-    	return
-    	
+        print ("EntsoEU API Token undefined")
+        return
+        
     day_in_seconds = 3600*24
     #first hour of this day
     #dt = datetime.fromtimestamp(int(time.time()/(day_in_seconds))*(day_in_seconds)-3600) #-(3600*24)
     # last hour
-    dt = datetime.fromtimestamp(int(time.time()/(3600))*(3600)-3600) #-(3600*24) 
+    
+    #dt = datetime.fromtimestamp(int(time.time()/(3600))*(3600)-3600) #-(3600*24) 
+    
+    dt = datetime.fromtimestamp(int(time.time()/(3600*24))*(3600*24)-3600)
+
     nowdt = datetime.now()
-    
-    
+
+
     start1 = tz_local.localize(dt)
     end1 = pd.Timestamp(dt,tz=s.timeZoneLocal)
     end1 = end1 + timedelta(days=1)
-    
+
     #print ("nowdt.hour = {:d}".format(nowdt.hour))
     if (nowdt.hour>11): #query next day
-    	#start1 = start1 + timedelta(days=1)
-    	end1 = end1 + timedelta(days=1)
-        	
+        #start1 = start1 + timedelta(days=1)
+        end1 = end1 + timedelta(days=1)
+            
    
     country_code = s.NordPoolPriceArea  
     tag_name = "dayahead"
@@ -63,8 +67,8 @@ def getNordPoolSPOTfromEntsoEU():
         ts =client.query_day_ahead_prices(country_code, start=start1,end=end1)
 
     except:
-    	print ("Cannot get prices", sys.exc_info())
-    	return
+        print ("Cannot get prices", sys.exc_info())
+        return
     	
     try:
         for tr in ts.keys():

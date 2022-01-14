@@ -45,7 +45,12 @@
 		"c": "energyPriceSpot>15"
 	},
 	"spotlow": {
-		"desc": "Spot price is low",
-		"c": "energyPriceSpot<4.0"
+		"desc": "Spot price is low and one of 6 cheapest hour",
+		"c": "energyPriceSpot<4.0 and spotPriceRank24h<=6"
+	},
+	"spotpeak12h": {
+		"desc": "4 most expensive spot prices in 12h window",
+		"c": "spotPriceRank12h>8"
 	}
+
 }

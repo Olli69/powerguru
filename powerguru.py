@@ -28,6 +28,8 @@ from aiohttp.web import Response
 from aiohttp_sse import sse_response
 from datetime import datetime
 
+import socket
+
 from threading import Thread, current_thread
 
 
@@ -45,6 +47,7 @@ GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 
 solarForecastBlocks = {"6" : 0, "12" : 0, "18" : 0, "24" : 0} 
+dayaheadWindowBlocks = {"6" : 0, "12" : 0, "18" : 0, "24" : 0} 
 
 
 import settings as s #settings file
@@ -83,39 +86,32 @@ channels_list = None
 channels = []
 sensorData = None
 powerSystem = None
-pricesAndForecast = None
+#pricesAndForecast = None
 
 
-
-# get current prices and expected future solar, e.g. solar6h is solar within next 6 hours
-def getPriceAndForecast():
-    global dayahead_list, forecastpv_list
-    global powerSystem
-    
-    dtnow = datetime.now()
-    now_local = dtnow.astimezone(tz_local).isoformat()
-    local_time = now_local[11:19]
-    """
-    if s.daytimeStarts < local_time < s.daytimeEnds:
-        transferPrice = s.transferPriceDay
-        energyPrice = s.energyPriceDay
-    else:
-        transferPrice = s.transferPriceNight
-        energyPrice = s.energyPriceNight
-            
-    totalPrice = transferPrice+s.electricityTax+energyPrice
-    """
-    
+def aggregate_dayahead_prices():
+    global dayahead_list,  powerSystem
+    # Aggregate day-ahead prices
     energyPriceSpot = None
     if dayahead_list is not None:
         for price_entry in dayahead_list:
             if price_entry["timestamp"] < time.time() and price_entry["timestamp"] > time.time()-3600:
                 energyPriceSpot = price_entry["fields"]["energyPriceSpot"]
 
+    powerSystem.set_variable("energyPriceSpot" , round(energyPriceSpot,2))
+
+    # now calculate spot price rank of current hour in different window sizes
+    for bCode,sfb in dayaheadWindowBlocks.items():
+        dayaheadWindowBlocks[bCode] = None
+        rank = get_current_period_rank(int(bCode))
+        variable_code = "spotPriceRank{}h".format(bCode)
+        powerSystem.set_variable(variable_code , rank)
+
+def aggregate_solar_forecast():
+    global forecastpv_list, powerSystem
 
     for sfbCode,sfb in solarForecastBlocks.items():
         solarForecastBlocks[sfbCode] = 0
-    #print("ennen solarForecastBlocks", solarForecastBlocks)
     
     if forecastpv_list is not None:
         for fcst_entry in forecastpv_list:
@@ -124,16 +120,15 @@ def getPriceAndForecast():
                 if fcst_entry["timestamp"] < time.time()+(futureHours*3600):
                     solarForecastBlocks[sfbCode] += fcst_entry["fields"]["pvrefvalue"]
 
-
-    powerSystem.set_variable("energyPriceSpot" , round(energyPriceSpot,3))
-    return_value =  { "energyPriceSpot" : energyPriceSpot}
-   
     for sfbCode,sfb in solarForecastBlocks.items():  
         blockCode = "solar{}h".format(sfbCode)
-        return_value[blockCode] = sfb
         powerSystem.set_variable(blockCode , sfb)
     
-    return return_value
+
+
+    
+
+
 
 
 
@@ -288,11 +283,7 @@ class PowerSystem:
         if current_conditions:
             status["current_conditions"] = current_conditions
 
-        if pricesAndForecast is not None:
-            status["energyPriceSpot"] = pricesAndForecast.get("energyPriceSpot",None)
-        else:
-            status["energyPriceSpot"] = None
- 
+     
 
         if gridenergy_data:
             status["Wsys"] = gridenergy_data["fields"]["Wsys"]
@@ -626,16 +617,62 @@ def reportState(price_fields):
     except:
          print ("Cannot write to influx", sys.exc_info())
          
+ 
+
+def get_spot_sliding_window_periods(current_period_start_ts, window_duration_hours):
+    # get entries from now to requested duration in the future, 
+    # if not enough future exists, include periods from history to get full window size
+    global dayahead_list
+    if  dayahead_list is  None:
+        return None
+
+    # get max and min
+    min_dayahead_time = current_period_start_ts +10*24*3600
+    max_dayahead_time = 0
+    for price_entry in dayahead_list:
+        min_dayahead_time = min(min_dayahead_time,price_entry["timestamp"])
+        max_dayahead_time = max(max_dayahead_time,price_entry["timestamp"])        
+
+    window_end_excl = min(current_period_start_ts + window_duration_hours*3600,max_dayahead_time)
+    window_start_incl = window_end_excl-window_duration_hours*3600
+    
+    entry_window = []
+    for price_entry in dayahead_list:
+        if window_start_incl <= price_entry["timestamp"]  and price_entry["timestamp"] < window_end_excl:
+            tsstr = datetime.fromtimestamp(price_entry["timestamp"]).strftime("%Y-%m-%dT%H:%M") 
+            entry_window.append({"ts":price_entry["timestamp"],"value":round(price_entry["fields"]["energyPriceSpot"],2), "tsstr":tsstr})
+          
+    entry_window_sorted = sorted(entry_window, key=lambda entry: entry["value"])
+    return entry_window_sorted
+
+
+def get_current_period_rank(window_duration_hours):
+    period_in_seconds = 60*s.nettingPeriodMinutes
+    current_period_start_ts = int(time.time()/period_in_seconds)*period_in_seconds
+
+    price_window_sorted = get_spot_sliding_window_periods(current_period_start_ts, window_duration_hours)
+    rank = 1
+    for entry in price_window_sorted:
+        if current_period_start_ts == entry["ts"]:
+            print()
+            print()
+            print("window size hours:", window_duration_hours, ", rank:", rank )
+            pp.pprint(price_window_sorted)
+            return rank
+        rank += 1
+
+    return None
+
 
 
 # this is the main function called by Reactor event handler and defined in task.LoopingCall(doWork)    
 def recalculate():
     print ('#recalculate')
-    global powerSystem, pricesAndForecast
+    global powerSystem
     # old...
     #global previousTotalEnergyHour, previousTotalEnergy,hourCumulativeEnergyPurchase, hourMeasurementCount
     global purchasedEnergyPeriodNet, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
-    global solarForecastBlocks
+    global solarForecastBlocks, dayaheadWindowBlocks
     global current_conditions
     
     
@@ -651,7 +688,6 @@ def recalculate():
     #    return False
     
     importTot = 0
-    imports = [0,0,0]
     price_fields = {}
     loadsA = [0,0,0]
     
@@ -660,16 +696,17 @@ def recalculate():
     dtnow = datetime.now()
     now_local = dtnow.astimezone(tz_local).isoformat()
     
-    pricesAndForecast = getPriceAndForecast()
-    #print("pricesAndForecast",pricesAndForecast)
+    #TODO: check how often to run
+    #get current prices and expected future solar, e.g. solar6h is solar within next 6 hours
+    # block updates?, should we get it once a hour
+    aggregate_solar_forecast()
+
         
         
     loadsA[0] = gridenergy_data["fields"]["AL1"]
     loadsA[1] = gridenergy_data["fields"]["AL2"]
     loadsA[2] = gridenergy_data["fields"]["AL3"]
-    imports[0] = gridenergy_data["fields"]["WL1"]
-    imports[1] = gridenergy_data["fields"]["WL2"]
-    imports[2] = gridenergy_data["fields"]["WL3"]
+   
     importTot = gridenergy_data["fields"]["Wsys"]
     cumulativeEnergy = gridenergy_data["fields"]["kWhTOT"]
     
@@ -696,19 +733,23 @@ def recalculate():
  
   
     # new, todo: tähän tallennukset influxiin
-    if s.nettingPeriodMinutes!= 0:
-        if netPreviousTotalEnergy == -1:
-            netPreviousTotalEnergy = cumulativeEnergy
-        currentNettingPeriod = int(time.time()/(s.nettingPeriodMinutes*60))
-        if netPreviousTotalEnergyPeriod != currentNettingPeriod:
-            netPreviousTotalEnergyPeriod =  currentNettingPeriod
-            netPeriodMeasurementCount = 0 
-        purchasedEnergyPeriodNet = cumulativeEnergy-netPreviousTotalEnergy
-        netPeriodMeasurementCount += 1
-        if netPeriodMeasurementCount == 1:
-            netPreviousTotalEnergy = cumulativeEnergy
-        powerSystem.set_variable("purchasedEnergyPeriodNet" , purchasedEnergyPeriodNet)
-        print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
+    if netPreviousTotalEnergy == -1:
+        netPreviousTotalEnergy = cumulativeEnergy
+    currentNettingPeriod = int(time.time()/(s.nettingPeriodMinutes*60))
+
+    if netPreviousTotalEnergyPeriod != currentNettingPeriod:
+        # this should probably be run when a new hour (period) starts, not always
+        aggregate_dayahead_prices()
+       
+
+        netPreviousTotalEnergyPeriod =  currentNettingPeriod
+        netPeriodMeasurementCount = 0 
+    purchasedEnergyPeriodNet = cumulativeEnergy-netPreviousTotalEnergy
+    netPeriodMeasurementCount += 1
+    if netPeriodMeasurementCount == 1:
+        netPreviousTotalEnergy = cumulativeEnergy
+    powerSystem.set_variable("purchasedEnergyPeriodNet" , purchasedEnergyPeriodNet)
+    print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
 
 
         #print("purchasedEnergyPeriodNet",purchasedEnergyPeriodNet,cumulativeEnergy,netPreviousTotalEnergy)
@@ -875,74 +916,13 @@ def filtered_fields(field_list,tag_name_value,debug_print=False, save_file_name 
             print(str(len(result_set)) + " rows" )
             
         data_updates[tag_name_value] = {"updated" : tz_utc.localize(datetime.utcnow()), "latest_ts" : latest_ts }
-
-        
+ 
     if len(result_set)>0 and save_file_name:
         save_data_json(result_set,save_file_name)
     
-     
     return result_set
-""" 
-     
-async def process_ws_msg(websocket, path):
-    print("***************",path)
-
-    global gridenergy_data, dayahead_list, forecastpv_list
 
 
-    #try:
-    msg = "[]"
-    while True:
-        try: 
-            msg = "[]"
-            msg = await websocket.recv()
-    
-        #msg = await websocket.recv()
-        #except:
-        #    print('Reconnecting')
-        #    websocket = await websocket.connect(ws_url)
-        except IncompleteReadError:
-            print("IncompleteReadError")
-            pass
-        
-        except ConnectionClosedError: 
-            pass
-            #if msg is not None:
-            #    print("Connection closed, but we have a message with length {}.".format(len(msg))) 
-            #else:
-            #    print("Connection closed and we have no msg.") 
-              
-        except:
-            if msg is not None:
-                print("Exception, but we have a message with length {}.".format(len(msg))) 
-            else:
-                print("Exception and we have no msg.")
-                 
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
-   
-            
-        if msg is not None:           
-            obj = json.loads(msg)      
-            if "metrics" in obj:
-                gridenergy_new = filtered_fields(obj["metrics"],"gridenergy",True)
-                if len(gridenergy_new)==1: # there should be only one entry
-                    gridenergy_data = gridenergy_new[0]
-                    recalculate()
-                
-                
-                dayahead_new = filtered_fields(obj["metrics"],"dayahead",True,s.dayahead_file_name)
-                if len(dayahead_new)>0:
-                    dayahead_list = dayahead_new
-                    
-
-                forecastpv_new = filtered_fields(obj["metrics"],"forecastpv",True,s.forecastpv_file_name)
-                if len(forecastpv_new)>0:
-                    forecastpv_list = forecastpv_new
-            #else:
-            #    print ("No metrics in object:",obj)
-            
-"""
 def process_sensor_data(temperature_data):
     global sensor_settings,sensorData
     found_new_sensors = False
@@ -1001,6 +981,11 @@ async def process_telegraf_post(request):
     obj = await request.json()
     #pp.pprint(obj)
    
+
+
+  
+
+
     #TODO: different metrics could be parametrized, so addional metrics (eg. PV inverter data) could be added without code changes
     if "metrics" in obj:
         gridenergy_new = filtered_fields(obj["metrics"],"gridenergy",False)
@@ -1022,10 +1007,12 @@ async def process_telegraf_post(request):
         dayahead_new = filtered_fields(obj["metrics"],"dayahead",False,s.dayahead_file_name)
         if len(dayahead_new)>0:
             dayahead_list = dayahead_new
+            aggregate_dayahead_prices()
 
         forecastpv_new = filtered_fields(obj["metrics"],"forecastpv",False,s.forecastpv_file_name)
         if len(forecastpv_new)>0:
             forecastpv_list = forecastpv_new
+            aggregate_solar_forecast()
 
     return web.Response(text=f"Thanks for your contibution Telegraf!")
 

@@ -77,7 +77,7 @@
             $.each(result.channels, function (i, field) {
                 targetText = "";
                 if (field.target && field.up) {
-                    targetText = `reached if: ${field.target.reachedWhen}`; 
+                    targetText = `reached when: ${field.target.reachedWhen}`; 
                 }
                 $("#status").append(`<tr><td class="code">${field.code}</td><td>${field.name} </td><td><b>${isUpString(field.up)}</b></td><td> ${targetText}</td></tr>`);
 
