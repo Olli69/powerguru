@@ -1,3 +1,11 @@
+# Sensors, curretnly only 1-wire sensor supported
+# 1-wire sensors are automatically added, so you do not need to change this file, maybe sensor name
+#
+# sensor attributes:
+# code - sensor code used also in reached target formula, automatically created: sensor1, sensor2...
+# id   - 1-wire unique identifier
+# name - sensor name
+#
 {
     "w1DeviceFolder": "/sys/bus/w1/devices",
     "sensors": [

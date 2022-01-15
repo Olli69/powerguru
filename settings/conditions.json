@@ -1,3 +1,7 @@
+# Condition definations
+# Condition formula "c" is checked in each recalculation for each condition defination listed here.
+# Current values of variables you can see from the dashboard.
+#
 {
 	"netsales": {
 		"desc": "More production than consumption, nettoperiodi",
@@ -26,7 +30,6 @@
 	"summernight": {
 		"desc": "kesäyö kalenterin mukaan",
 		"c": "(hhmm < '0700' or hhmm >'2200') and (mmdd > '0214' and mmdd < '1016')"
-
 	},
 	"winternight": {
 		"desc": "talviyö kalenterin mukaan",
