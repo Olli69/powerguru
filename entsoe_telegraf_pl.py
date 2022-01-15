@@ -47,7 +47,7 @@ def getNordPoolSPOTfromEntsoEU():
     tag_name = "dayahead"
     try:
         #print ("Querying - country code: {:s}, start: {:s}, end: {:s}".format(country_code, start1.strftime("%Y-%m-%dT%H:%M:%S"),end1.strftime("%Y-%m-%dT%H:%M:%S")))  
-        client = EntsoePandasClient(s.EntsoEUAPIToken)
+        client = EntsoePandasClient(EntsoEUAPIToken)
         # methods that return Pandas Series
         ts =client.query_day_ahead_prices(country_code, start=start1,end=end1)
 

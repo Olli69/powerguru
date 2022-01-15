@@ -94,7 +94,6 @@ def aggregate_dayahead_prices():
     for bCode in powerGuru.dayaheadWindowBlocks:
         rank = get_current_period_rank(bCode)
         variable_code = s.spot_price_variable_code.format(bCode)
-        print("variable ",variable_code, ", rank ", rank )
         powerGuru.set_variable(variable_code , rank)
 
 

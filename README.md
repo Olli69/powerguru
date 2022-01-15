@@ -36,6 +36,11 @@ BCDC Energia gives day-ahead solar-power forecast for specified locations in Fin
 ### Solar Inverters
 Production data can be updated from solar (PV) inverters with a HTTP-api (e.g. Fronius Solar Api). [Telegraf HTTP input plugin](https://github.com/influxdata/telegraf/blob/release-1.21/plugins/inputs/http/README.md)
 
+### Dashboard
+Dashboard is a tiny web service showing current state of Powerguru service.
+![Dashboard](https://github.com/Olli69/powerguru/blob/main/docs/img/powerguru-dashboard.png?raw=true)
+
+
 
 ## Concept
 TO BE UPDATED...
