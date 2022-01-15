@@ -4,6 +4,8 @@
 # nettingPeriodMinutes - 60 normal netting in 1 hour periods, 15 possible in the future
 {
     "EntsoEUAPIToken": "41c76142-eaab-4bc2-9dc4-5215017e4f6b",
+    "InfluxDBClientUrl": "http://127.0.0.1:8086",
+    "InfluxDBClientToken": "",
     "NordPoolPriceArea": "FI",
     "bcdcenergiaLocation": "Salo",
     "maxLoadPerPhaseA": 50.0,
