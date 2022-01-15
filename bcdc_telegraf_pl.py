@@ -6,47 +6,38 @@
 import requests
 import json
 import settings as s
-import time
-from datetime import datetime, timezone,date
+from datetime import datetime
 
 # Telegraf plugin
 from typing import Dict
 from telegraf_pyplug.main import print_influxdb_format, datetime_tzinfo_to_nano_unix_timestamp
 
-
-from datetime import timedelta
-import dateutil.parser
-
 import sys
 import pytz
 
-tz_local = pytz.timezone(s.timeZoneLocal)
+powerguru_settings = s.read_settings(s.powerguru_file_name)
+timeZoneLocal =  powerguru_settings["timeZoneLocal"]
+bcdcenergiaLocation = powerguru_settings["bcdcenergiaLocation"]
+
+tz_local = pytz.timezone(timeZoneLocal)
 
 
 # report
 def forecast_to_telegraf():
-    query_data_raw = 'action=getChartData&loc=' + s.bcdcenergiaLocation
+    query_data_raw = 'action=getChartData&loc=' + bcdcenergiaLocation
     r = requests.post('http://www.bcdcenergia.fi/wp-admin/admin-ajax.php',data=query_data_raw,headers={'Content-Type': 'application/x-www-form-urlencoded'})
     fcst_data = json.loads(r.text)
     day_value = 0.0
     for pv_h in fcst_data["pvenergy"]:
         day_value += pv_h["value"]
-    #print ("Total forecast references value for {:s} is {:f}.".format(fcst_data["startdate"],day_value))
-    
-	#ifclient = InfluxDBClient(host=s.ifHost, port=s.ifPort, username=s.ifUsername, password=s.ifPassword, ssl=s.ifssl, verify_ssl=s.ifVerify_ssl,timeout=s.ifTimeout, database=s.ifDatabase)
-
     i=0
     try:
-        json_body = []
         daytsprev = -1
         daytotal = 0.0
         METRIC_NAME: str = "solarfcst"
         tag_name = "forecastpv"
-        #print ((fcst_data["pvenergy"]))
-        
         for pv_h in fcst_data["pvenergy"]:
-            #print(pv_h)
-            #print(int(pv_h["time"]))
+
             daytscur = int(pv_h["time"]/(3600000*24))
             daytotal += pv_h["value"]+0.0
             i += 1
@@ -59,7 +50,7 @@ def forecast_to_telegraf():
                 print_influxdb_format(
                     measurement=METRIC_NAME,
                     fields=METRIC_FIELDS,
-                    tags = { "location": s.bcdcenergiaLocation},
+                    tags = { "location": bcdcenergiaLocation},
                     nano_timestamp=datetime_tzinfo_to_nano_unix_timestamp(loc_dtday)
                 )         
                 daytotal = 0.0
@@ -70,16 +61,15 @@ def forecast_to_telegraf():
             
             print_influxdb_format(
             measurement=METRIC_NAME, 
-            tags = { "location": s.bcdcenergiaLocation,  "name" : tag_name},
+            tags = { "location": bcdcenergiaLocation,  "name" : tag_name},
             fields={"pvrefvalue":pv_h["value"]+0.0,"pv_forecast":pv_h["value"]*30.0/2.5},
             nano_timestamp=datetime_tzinfo_to_nano_unix_timestamp(loc_dt)
             )
 
-    #todo: error handling järkeväksi
+    #TODO: error handling järkeväksi
     except:
         print ("Cannot write to influx", sys.exc_info())
 		
-
 
 forecast_to_telegraf() 
 

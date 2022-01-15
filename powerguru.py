@@ -31,23 +31,17 @@ from datetime import datetime
 import socket
 
 from threading import Thread, current_thread
-
-
 import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
 
-from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 
-# via Telegraf relay to influxDB
-ifclient = InfluxDBClient(url = "http://127.0.0.1:8086",token="")
+
 
 GPIO.setwarnings(False)
 #use GPIO-numbers to refer GPIO pins
 GPIO.setmode(GPIO.BCM)
-
-solarForecastBlocks = {"6" : 0, "12" : 0, "18" : 0, "24" : 0} 
-dayaheadWindowBlocks = {"6" : 0, "12" : 0, "18" : 0, "24" : 0} 
 
 
 import settings as s #settings file
@@ -55,8 +49,6 @@ import settings as s #settings file
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
-tz_local = pytz.timezone(s.timeZoneLocal)
-tz_utc = pytz.timezone("UTC")
 
 data_updates = {}
 gridenergy_data = None
@@ -64,33 +56,30 @@ temperature_data = None
 dayahead_list = None 
 forecastpv_list = None
 current_conditions = None
-"""
-previousTotalEnergyHour = -999
-previousTotalEnergy = -1
-hourCumulativeEnergyPurchase = 0
-hourMeasurementCount = 0
-"""
-#new version of ...
+
 netPreviousTotalEnergyPeriod = -999
 netPreviousTotalEnergy = -1
 purchasedEnergyPeriodNet = 0 
 netPeriodMeasurementCount = 0
 
-
 sensor_settings = None
-#switches = None
 conditions = None
 channels_list = None
 
 # global variables
 channels = []
 sensorData = None
-powerSystem = None
-#pricesAndForecast = None
+
+#init config class
+powerGuru = None   
+
+
+
+
 
 
 def aggregate_dayahead_prices():
-    global dayahead_list,  powerSystem
+    global dayahead_list,  powerGuru
     # Aggregate day-ahead prices
     energyPriceSpot = None
     if dayahead_list is not None:
@@ -98,37 +87,34 @@ def aggregate_dayahead_prices():
             if price_entry["timestamp"] < time.time() and price_entry["timestamp"] > time.time()-3600:
                 energyPriceSpot = price_entry["fields"]["energyPriceSpot"]
 
-    powerSystem.set_variable("energyPriceSpot" , round(energyPriceSpot,2))
+    powerGuru.set_variable("energyPriceSpot" , round(energyPriceSpot,2))
 
     # now calculate spot price rank of current hour in different window sizes
-    for bCode,sfb in dayaheadWindowBlocks.items():
-        dayaheadWindowBlocks[bCode] = None
-        rank = get_current_period_rank(int(bCode))
-        variable_code = "spotPriceRank{}h".format(bCode)
-
+    
+    for bCode in powerGuru.dayaheadWindowBlocks:
+        rank = get_current_period_rank(bCode)
+        variable_code = s.spot_price_variable_code.format(bCode)
         print("variable ",variable_code, ", rank ", rank )
+        powerGuru.set_variable(variable_code , rank)
 
-        powerSystem.set_variable(variable_code , rank)
 
 def aggregate_solar_forecast():
-    global forecastpv_list, powerSystem
+    global forecastpv_list, powerGuru
 
-    for sfbCode,sfb in solarForecastBlocks.items():
-        solarForecastBlocks[sfbCode] = 0
-    
+    blockSums = {}
+    for bCodei in powerGuru.solarForecastBlocks:
+        blockSums[str(bCodei)] = 0
+
     if forecastpv_list is not None:
         for fcst_entry in forecastpv_list:
-            for sfbCode,sfb in solarForecastBlocks.items():
-                futureHours = int(sfbCode)        
+            for bCodei in powerGuru.solarForecastBlocks:
+                futureHours = bCodei        
                 if fcst_entry["timestamp"] < time.time()+(futureHours*3600):
-                    solarForecastBlocks[sfbCode] += fcst_entry["fields"]["pvrefvalue"]
+                    blockSums[str(bCodei)] += fcst_entry["fields"]["pvrefvalue"]
 
-    for sfbCode,sfb in solarForecastBlocks.items():  
-        blockCode = "solar{}h".format(sfbCode)
-        powerSystem.set_variable(blockCode , sfb)
-    
-
-
+    for sfbCode,sfb in blockSums.items():  
+        blockCode = s.solar_forecast_variable_code.format(sfbCode)
+        powerGuru.set_variable(blockCode , round(sfb,2))
     
 
 
@@ -162,9 +148,18 @@ def setOutGPIO(gpio,enable,init=False):
  
 # This class handles line resources (phases) e.g.
 #TODO; disabling line capacity handling
-class PowerSystem:
-    def __init__(self):
+class PowerGuru:
+    def __init__(self,init_file_name):
+        self.settings = s.read_settings(init_file_name) 
+        #add most important settings to attributes
+        self.maxLoadPerPhaseA = self.get_setting("maxLoadPerPhaseA")
+        self.nettingPeriodMinutes = self.get_setting("nettingPeriodMinutes")
+        self.dayaheadWindowBlocks = self.get_setting("dayaheadWindowBlocks") 
+        self.solarForecastBlocks = self.get_setting("solarForecastBlocks") 
+        
+
         self.lines = [ (1, 0),(2, 0),(3, 0)]
+        
         self.lines_sorted = self.lines
         self.status_propagated = True
         self.variables = {}
@@ -173,7 +168,7 @@ class PowerSystem:
         self.variables[field_code] = {"value": value, "ts" : time.time(), "type" : "num"}
 
     def print_variables(self):
-        print("PowerSystem.variables()")
+        print("PowerGuru.variables()")
         for vkey,variable in self.variables.items():
             print("{}={}".format(vkey,variable["value"]))
 
@@ -196,7 +191,13 @@ class PowerSystem:
                 return self.variables[field_code]["value"]
         else:
             return default_value
-    
+
+    def get_setting(self,field_code,default_value = None):
+        if field_code in self.settings:
+            return self.settings[field_code]
+        else:
+            return default_value
+
     # adds pseudo variables like time 
     def get_variables(self):
         return_object = self.variables  
@@ -219,7 +220,7 @@ class PowerSystem:
                 if rline["l"] == line[0]:
                     requested_phase_current = rline["A"]
             
-            projectedOverload = line[1]-s.basicInfo["maxLoadPerPhaseA"]+requested_phase_current
+            projectedOverload = line[1]-self.maxLoadPerPhaseA+requested_phase_current
             if projectedOverload>0:
                 print("Line ", line[0], " could cause overload: ", projectedOverload)
                 return False
@@ -234,7 +235,7 @@ class PowerSystem:
         # check each line, if overload -> decrease load (if possible) until no overload exists
         
         for line in self.lines:
-            overLoad = line[1]-s.basicInfo["maxLoadPerPhaseA"]
+            overLoad = line[1]-self.maxLoadPerPhaseA
             if overLoad<0:
                 print("No overload in line ", line,", overload:" ,overLoad)
                 continue
@@ -256,20 +257,22 @@ class PowerSystem:
     def getLineCapacity(self,reverse=False): # antaa vähiten kuormitetuimmat linjat ekaksi tai jos revrse niin toisin päin
         available_lines = []
         for line in sorted(self.lines, key=lambda line: line[1],reverse=reverse):
-            available_lines.append({"l" : line[0],"availableA":s.basicInfo["maxLoadPerPhaseA"]-line[1]})
+            available_lines.append({"l" : line[0],"availableA":self.maxLoadPerPhaseA-line[1]})
         return available_lines #näitä voisi kuormittaa jos ei ole jo kuormitettu
 
     #for the dashboard
     def get_status(self,set_status_propagated):
         if set_status_propagated:
             self.status_propagated = True  
+
+        tz_utc = pytz.timezone("UTC")
         
         status = {"channels": [], "updates":[], "sensors":[], "variables":[], "current_conditions":None}
 
         for channel in channels:
             status["channels"].append({ "code" : channel.code, "name" : channel.name, "up":  channel.up, "target" : channel.target })
         
-        for variable_code,variable in powerSystem.get_variables():
+        for variable_code,variable in powerGuru.get_variables():
             status["variables"].append({ "code" : variable_code, "value" : variable["value"], "ts":  variable["ts"], "type" : variable["type"] })
 
 
@@ -316,12 +319,12 @@ class SensorData:
         return False
          
     def setValueById(self,id,value):    
-        global powerSystem
+        global powerGuru
         for sensor in self.sensors:
             if sensor["id"] == id:
                 sensor["value"]= value
                 # set sensor value to variables, so it can be used in conditions
-                powerSystem.set_variable(sensor["code"],round(value,1))
+                powerGuru.set_variable(sensor["code"],round(value,1))
                 return
                 
     def getValueByCode(self,code):    
@@ -438,10 +441,10 @@ class Channel:
         return None
     
     def loadUp(self):
-        global powerSystem
+        global powerGuru
         print("loadUp", self.name)
-        if powerSystem.requestCapacity(self.lines):
-            print("requestCapacity ok")
+        if powerGuru.requestCapacity(self.lines):
+            #print("requestCapacity ok")
             setOutGPIO(self.gpio,True)
             self.up = True
         else:
@@ -450,7 +453,7 @@ class Channel:
        
         
         """
-        lineResources = powerSystem.getLineCapacity(reverse=False)
+        lineResources = powerGuru.getLineCapacity(reverse=False)
         
         for lr in lineResources:
             line = self.getLine(lr["l"])
@@ -478,7 +481,7 @@ class Channel:
         self.up = False
         
         """
-        lineResources = powerSystem.getLineCapacity(reverse=True) #katso saisiko ton amppeerimäärän laitteelta
+        lineResources = powerGuru.getLineCapacity(reverse=True) #katso saisiko ton amppeerimäärän laitteelta
         for lr in lineResources:
             line = self.getLine(lr["l"])
             #print("line",line)
@@ -512,7 +515,7 @@ def sig_handler(signum, frame):
 def check_conditions():
     ok_conditions = []
     global conditions
-    global powerSystem
+    global powerGuru
   
     #TODO: spotlowesthours - kuluvan päivän x halvinta tuntia, tässä pitäisi kyllä ottaa myös kuluneet
     #voisi ottaa ko päivän kuluneet ja koko tiedetyn tulevaisuuden
@@ -534,9 +537,9 @@ def test_formula(formula,info):
     #print("#######")
     eval_string = formula
     # powerguru:time
-    for vkey,v in powerSystem.get_variables():
+    for vkey,v in powerGuru.get_variables():
         if vkey in eval_string:
-            variable_value = powerSystem.get_value(vkey,None)
+            variable_value = powerGuru.get_value(vkey,None)
             if variable_value is not None:
                 eval_string = eval_string.replace(vkey,str(variable_value))
             else:
@@ -544,7 +547,11 @@ def test_formula(formula,info):
                 return False, True
             
     try:
-        eval_value = eval(eval_string,{})    
+        eval_value = eval(eval_string,{})   
+    except NameError:
+        print("Variable(s) undefined in " + eval_string)
+        return False, True 
+
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
@@ -555,37 +562,15 @@ def test_formula(formula,info):
     return eval_value, False 
 
 
-
-def readSettings(settings_filename=None):
-    global machineSettings
-    
-    if settings_filename is None:
-        isMachineSettings = True
-        settings_filename = "settings/{}.json".format(socket.gethostname())
-    else:
-        isMachineSettings = False
-        
-    print(settings_filename)
-    if os.path.exists(settings_filename):
-        f = open(settings_filename)
-        ls = json.load(f)
-        f.close()
-    else:      
-        ls = json.loads("{}") 
-        
-    if isMachineSettings:     
-        machineSettings = ls
-    return ls
-        
-
-        
-
         
 def reportState(price_fields): 
     temperature_fields = {}
     state = {}
     condition_fields = {}
     channel_fields = {}
+    # via Telegraf relay to influxDB
+    #TODO: add to parameters
+    ifclient = InfluxDBClient(url = "http://127.0.0.1:8086",token="")
     try:
         json_body = []
         
@@ -603,7 +588,6 @@ def reportState(price_fields):
         "fields": channel_fields
         })
 
-        
         for condition_key,condition in conditions.items(): 
             condition_fields[condition_key]=  (1 if condition["enabled"] else 0)
             
@@ -639,9 +623,9 @@ def get_spot_sliding_window_periods(current_period_start_ts, window_duration_hou
 
     window_end_excl = min(current_period_start_ts + window_duration_hours*3600,max_dayahead_time)
     window_start_incl = window_end_excl-window_duration_hours*3600
-    print("current_period_start_ts", current_period_start_ts)
-    print("dayahead_list ts range",min_dayahead_time, max_dayahead_time)
-    print("window_start_incl  -  window_end_excl",window_start_incl, window_end_excl)
+    #print("current_period_start_ts", current_period_start_ts)
+    #print("dayahead_list ts range",min_dayahead_time, max_dayahead_time)
+    #print("window_start_incl  -  window_end_excl",window_start_incl, window_end_excl)
 
 
     entry_window = []
@@ -655,17 +639,16 @@ def get_spot_sliding_window_periods(current_period_start_ts, window_duration_hou
 
 
 def get_current_period_rank(window_duration_hours):
-    period_in_seconds = 60*s.nettingPeriodMinutes
+    global powerGuru
+    period_in_seconds = 60*powerGuru.nettingPeriodMinutes
     current_period_start_ts = int(time.time()/period_in_seconds)*period_in_seconds
 
     price_window_sorted = get_spot_sliding_window_periods(current_period_start_ts, window_duration_hours)
     rank = 1
     for entry in price_window_sorted:
         if current_period_start_ts == entry["ts"]:
-            print()
-            print()
-            print("window size hours:", window_duration_hours, ", rank:", rank )
-            pp.pprint(price_window_sorted)
+            #print("window size hours:", window_duration_hours, ", rank:", rank )
+            #pp.pprint(price_window_sorted)
             return rank
         rank += 1
     
@@ -677,25 +660,22 @@ def get_current_period_rank(window_duration_hours):
 # this is the main function called by Reactor event handler and defined in task.LoopingCall(doWork)    
 def recalculate():
     print ('#recalculate')
-    global powerSystem
-    # old...
-    #global previousTotalEnergyHour, previousTotalEnergy,hourCumulativeEnergyPurchase, hourMeasurementCount
+    global powerGuru
     global purchasedEnergyPeriodNet, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
-    global solarForecastBlocks, dayaheadWindowBlocks
     global current_conditions
-    
-    
     global gridenergy_data, temperature_data, dayahead_list, forecastpv_list
   
+    
     #todo: check data age
     if gridenergy_data is None or "fields" not in gridenergy_data:
         print("No gridenergy_data")
         return False
     
-    # TODO: read from cache , check validity (in init) , handle cases if not used
+    #TODO: read from cache , check validity (in init) , handle cases if not used
     #if dayahead_list is None or forecastpv_list is None:
     #    return False
-    
+
+
     importTot = 0
     price_fields = {}
     loadsA = [0,0,0]
@@ -703,6 +683,7 @@ def recalculate():
     # Go through all connected thermometers
     
     dtnow = datetime.now()
+    tz_local = pytz.timezone(powerGuru.get_setting("timeZoneLocal")) 
     now_local = dtnow.astimezone(tz_local).isoformat()
     
     #TODO: check how often to run
@@ -724,12 +705,11 @@ def recalculate():
     price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
  
 
-
     # sales only for negative import
     price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
     price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
         
-    # yösähkö erikseen, tää olisi hyvä parametroida
+    #TODO: tarvitaanko, yösähkö erikseen, tää olisi hyvä parametroida
     local_time = now_local[11:19] 
     #TODO nämä parametreistä
     if "07:00:00" < local_time < "22:00:00":# and dtnow.isoweekday()!=7: 
@@ -744,44 +724,28 @@ def recalculate():
     # new, todo: tähän tallennukset influxiin
     if netPreviousTotalEnergy == -1:
         netPreviousTotalEnergy = cumulativeEnergy
-    currentNettingPeriod = int(time.time()/(s.nettingPeriodMinutes*60))
+        
+    currentNettingPeriod = int(time.time()/(powerGuru.nettingPeriodMinutes*60))
 
     if netPreviousTotalEnergyPeriod != currentNettingPeriod:
         # this should probably be run when a new hour (period) starts, not always
         aggregate_dayahead_prices()
-       
 
         netPreviousTotalEnergyPeriod =  currentNettingPeriod
         netPeriodMeasurementCount = 0 
+#TODO: tsekkaa miksi purchasedEnergyPeriodNet nollaantuu viivellä periodin vaihtuessa
+    
     purchasedEnergyPeriodNet = cumulativeEnergy-netPreviousTotalEnergy
     netPeriodMeasurementCount += 1
     if netPeriodMeasurementCount == 1:
         netPreviousTotalEnergy = cumulativeEnergy
-    powerSystem.set_variable("purchasedEnergyPeriodNet" , purchasedEnergyPeriodNet)
+    powerGuru.set_variable("purchasedEnergyPeriodNet" , round(purchasedEnergyPeriodNet,2))
     print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
 
 
-        #print("purchasedEnergyPeriodNet",purchasedEnergyPeriodNet,cumulativeEnergy,netPreviousTotalEnergy)
-
-    """
-    #Old
-    if previousTotalEnergy == -1: #first measurement after init
-        previousTotalEnergy = cumulativeEnergy
-    if previousTotalEnergyHour != dtnow.hour-1: #first measurement within hour
-        # TODO: could get exact number from the DB
-        previousTotalEnergyHour = dtnow.hour-1
-        hourMeasurementCount = 0
-    hourCumulativeEnergyPurchase = cumulativeEnergy-previousTotalEnergy  
-    #TODO: nämä pois kun uusi todettu toimivaksi
-    print("hourCumulativeEnergyPurchase",hourCumulativeEnergyPurchase,cumulativeEnergy,previousTotalEnergy)
-    price_fields["hourCumulativeEnergyPurchase"]= hourCumulativeEnergyPurchase               
-    hourMeasurementCount +=1
-    if hourMeasurementCount==1: #first measurement of hour, init cumulative
-        previousTotalEnergy = cumulativeEnergy
-    """  
       
     #TODO: OVERLOAD CONTROL!!!    
-    powerSystem.setLoad(loadsA[0],loadsA[1],loadsA[2])             
+    powerGuru.setLoad(loadsA[0],loadsA[1],loadsA[2])             
  
     current_conditions = check_conditions()
 
@@ -816,7 +780,7 @@ def recalculate():
                 break
   
 
-    powerSystem.set_status_unpropagated()
+    powerGuru.set_status_unpropagated()
     # export to influxDB
     #TODO: write current_conditions etc calculated  - price_fields - fields to influx
     reportState(price_fields)
@@ -824,23 +788,23 @@ def recalculate():
 
 
 
-def load_program_config(signum=None, frame=None):
-    global actuators,sensorData,thermometers, powerSystem
+def load_program_config():
+    global actuators,sensorData,thermometers, powerGuru
     global sensor_settings,conditions #,switches
     global dayahead_list, forecastpv_list
     global channels_list
     
-    #TODO: read cached foracast and price info and check validity
+    powerGuru = PowerGuru(s.powerguru_file_name) 
+    #TODO: read cached forecast and price info and check validity?
 
      #1-wire
-    sensor_settings = readSettings(s.sensor_settings_filename)  
+    sensor_settings = s.read_settings(s.sensor_settings_filename)  
     sensorData = SensorData(sensor_settings["sensors"])
 
-    #switches
-    #switches = readSettings(switches_settings_filename) 
+
 
     #channels_list
-    channels_list = readSettings(s.channels_filename) 
+    channels_list = s.read_settings(s.channels_filename) 
     idx = 0
     for channel in channels_list:
         channel =  Channel(idx,"ch"+str(idx+1),channel)
@@ -849,13 +813,8 @@ def load_program_config(signum=None, frame=None):
         idx += 1
 
     # conditions
-    conditions = readSettings(s.conditions_filename) 
+    conditions = s.read_settings(s.conditions_filename) 
 
- 
-    #print(sensor_settings)
-    #pp.pprint(sensorData.sensors)  
-    
-    powerSystem = PowerSystem()    
     
     # TODO: cache expiration to parameters
     expire_file_cache_h = 8
@@ -897,6 +856,7 @@ def save_data_json(field_list,file_name):
 
 def filtered_fields(field_list,tag_name_value,debug_print=False, save_file_name = ''):
     global data_updates
+    tz_utc = pytz.timezone("UTC")
     
     latest_ts = 0
     
@@ -962,16 +922,16 @@ def process_sensor_data(temperature_data):
 #    return 42
 
 async def status(request):
-    global powerSystem
+    global powerGuru
     async with sse_response(request) as resp:
         while True:
             #data = 'Server Time : {}'.format(datetime.now())
-            status_obj = powerSystem.get_status(True)
+            status_obj = powerGuru.get_status(True)
             
             #print(data)
             #voisiko viimeisin update mennä globaaliin, jota tutkitaan vaikka sekunnin välein, jos uutta niin tulostetaan json
             await resp.send(json.dumps(status_obj))  
-            while powerSystem.status_propagated:  
+            while powerGuru.status_propagated:  
                 await asyncio.sleep(1)
     return resp
 
@@ -985,7 +945,7 @@ async def index(request):
 #async def add_user(request: web.Request) -> web.Response:
 async def process_telegraf_post(request):
     global gridenergy_data, dayahead_list, forecastpv_list
-    global powerSystem
+    global powerGuru
 
     obj = await request.json()
     #pp.pprint(obj)
@@ -1001,15 +961,15 @@ async def process_telegraf_post(request):
         #this
         if len(gridenergy_new)==1: # there should be only one entry
             #
-            #powerSystem.set_variables(gridenergy_new[0])
-            powerSystem.print_variables() #debugging
+            #powerGuru.set_variables(gridenergy_new[0])
+            #powerGuru.print_variables() #debugging
             gridenergy_data = gridenergy_new[0]
             #TODO: trigger recalculate also after other updates but wait thats all requests in the incoming Telegraf buffer are processed
             recalculate()
         
         temperature_new = filtered_fields(obj["metrics"],"temperature",False)
         if len(temperature_new)>0:
-            #powerSystem.set_variables(temperature_new)
+            #powerGuru.set_variables(temperature_new)
             temperature_data = temperature_new
             process_sensor_data(temperature_data)
             
