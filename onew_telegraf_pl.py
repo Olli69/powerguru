@@ -15,13 +15,11 @@ GPIO.setwarnings(False)
 #from typing import Dict
 from telegraf_pyplug.main import print_influxdb_format, datetime_tzinfo_to_nano_unix_timestamp
 
-import dateutil.parser
 from glob import glob #Unix style pathname pattern expansion
 import re
   
 # service run on user "telegraf" context, so path will be manipulated 
 
-sensor_settings_filename =  s.replace_path_from_script(s.sensor_settings_filename)
 sensor_settings = None
 
 
@@ -96,18 +94,11 @@ def reset_onewire():
 def onewire_to_telegraf():
     global sensor_settings
       
-    
-    try:
-        with open(sensor_settings_filename) as json_file:
-            sensor_settings= json.load(json_file)
-    except:
-        print ("Cannot find settings file")
-        exit(1)
-    
+    sensor_settings = s.read_settings(s.sensor_settings_filename)
+  
     #reset_onewire() #koska ajettaisiin
 
     thermometer_fields = read_thermometers()
-    #print(thermometer_fields)
     
     if not thermometer_fields:
         return False
@@ -125,9 +116,6 @@ def onewire_to_telegraf():
     except:
         pass
   
-#print(__file__)
-#print(os.path.basename(__file__))
-#print(os.path.dirname(__file__))
 
 onewire_to_telegraf() 
 
