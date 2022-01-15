@@ -61,6 +61,7 @@ Condition parameters are defined in settings/conditions.json
 Currently boilers/heaters are supported or other heaters. Channel defines rules for switching channel up/down. Targets are tested in order and first matching target is used. [settings/channels.json](settings/channels.json)
 
 ![ULN2003A based Raspberry Pi switch controller hat for 12/24 DC relays](https://github.com/Olli69/powerguru/blob/main/docs/img/raspi-protohat.jpg?raw=true)
+ULN2003A based Raspberry Pi switch controller hat for 12/24 DC relays
 
 
 ### Sensors
