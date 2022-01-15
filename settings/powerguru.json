@@ -1,12 +1,13 @@
+# Site specific settings:
+# EntsoEUAPIToken -  EntsoE API key, request this key from EntsoEU web site
+# bcdcenergiaLocation - check you nearest solar forecast location at http://www.bcdcenergia.fi/
+# nettingPeriodMinutes - 60 normal netting in 1 hour periods, 15 possible in the future
 {
-    #EntsoE API key, request this key from EntsoEU web site
-    "EntsoEUAPIToken": "YOUR_ENTSOE_API_TOKEN_HERE",
+    "EntsoEUAPIToken": "41c76142-eaab-4bc2-9dc4-5215017e4f6b",
     "NordPoolPriceArea": "FI",
-    # check you nearest location at http://www.bcdcenergia.fi/
     "bcdcenergiaLocation": "Salo",
     "maxLoadPerPhaseA": 50.0,
     "timeZoneLocal": "Europe/Helsinki",
-    # 60 normal netting in 1 hour periods, 15 possible in the future
     "nettingPeriodMinutes": 60,
     "dayaheadWindowBlocks" : [6,12,18,24],
     "solarForecastBlocks" : [6,12,18,24]
