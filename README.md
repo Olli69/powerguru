@@ -43,8 +43,7 @@ Dashboard is a tiny web service showing current state of Powerguru service. You 
 - Status of the channels
 - Current values of variables, which are used to control statuses and channel targets
 - Update status of different data from Telegraf to Powerguru
-
-![Dashboard](https://github.com/Olli69/powerguru/blob/main/docs/img/powerguru-dashboard.png?raw=true)
+<img align="right" width="100" height="100" src="https://github.com/Olli69/powerguru/blob/main/docs/img/powerguru-dashboard.png?raw=true">
 
 
 
