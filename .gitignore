@@ -1,8 +1,7 @@
 backup.sh
 data/dayahead.json
 data/forecastpv.json
-settings.py
 testgpio.py
 __pycache__
-settings/telegraf-powerguru.conf
 settings/powerguru.json
+settings/telegraf-powerguru.conf

@@ -236,7 +236,7 @@ class PowerGuru:
         for line in self.lines:
             overLoad = line[1]-self.maxLoadPerPhaseA
             if overLoad<0:
-                print("No overload in line ", line,", overload:" ,overLoad)
+                #print("No overload in line ", line,", overload:" ,overLoad)
                 continue
             
             for channel in channels:
@@ -296,7 +296,137 @@ class PowerGuru:
             status["Wsys"] = None
         
         return status
-                       
+
+
+    # this is the main calculation function    
+    def recalculate(self):
+        print ('#recalculate')
+        #global self
+        global purchasedEnergyPeriodNet, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
+        global current_conditions
+        global gridenergy_data, temperature_data, dayahead_list, forecastpv_list
+    
+        
+        #todo: check data age
+        if gridenergy_data is None or "fields" not in gridenergy_data:
+            print("No gridenergy_data")
+            return False
+        
+        #TODO: read from cache , check validity (in init) , handle cases if not used
+        #if dayahead_list is None or forecastpv_list is None:
+        #    return False
+
+
+        importTot = 0
+        price_fields = {}
+        loadsA = [0,0,0]
+        
+        # Go through all connected thermometers
+        
+        dtnow = datetime.now()
+        tz_local = pytz.timezone(powerGuru.get_setting("timeZoneLocal")) 
+        now_local = dtnow.astimezone(tz_local).isoformat()
+        
+        #TODO: check how often to run
+        #get current prices and expected future solar, e.g. solar6h is solar within next 6 hours
+        # block updates?, should we get it once a hour
+        aggregate_solar_forecast()
+
+            
+            
+        loadsA[0] = gridenergy_data["fields"]["AL1"]
+        loadsA[1] = gridenergy_data["fields"]["AL2"]
+        loadsA[2] = gridenergy_data["fields"]["AL3"]
+    
+        importTot = gridenergy_data["fields"]["Wsys"]
+        cumulativeEnergy = gridenergy_data["fields"]["kWhTOT"]
+        
+        
+        price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
+        price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
+    
+
+        # sales only for negative import
+        price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
+        price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
+            
+        #TODO: tarvitaanko, yösähkö erikseen, tää olisi hyvä parametroida
+        local_time = now_local[11:19] 
+        #TODO nämä parametreistä
+        if "07:00:00" < local_time < "22:00:00":# and dtnow.isoweekday()!=7: 
+            price_fields[ "purchaseDay"]= (importTot if importTot>0 else 0.0)
+            price_fields[ "purchaseNight"]= 0.0
+        else:
+            price_fields[ "purchaseNight"]= (importTot if importTot>0 else 0.0)
+            price_fields[ "purchaseDay"]= 0.0
+        
+    
+    
+        # new, todo: tähän tallennukset influxiin
+        if netPreviousTotalEnergy == -1:
+            netPreviousTotalEnergy = cumulativeEnergy
+            
+        currentNettingPeriod = int(time.time()/(self.nettingPeriodMinutes*60))
+
+        if netPreviousTotalEnergyPeriod != currentNettingPeriod:
+            # this should probably be run when a new hour (period) starts, not always
+            aggregate_dayahead_prices()
+
+            netPreviousTotalEnergyPeriod =  currentNettingPeriod
+            netPeriodMeasurementCount = 0 
+    #TODO: tsekkaa miksi purchasedEnergyPeriodNet nollaantuu viivellä periodin vaihtuessa
+        
+        purchasedEnergyPeriodNet = cumulativeEnergy-netPreviousTotalEnergy
+        netPeriodMeasurementCount += 1
+        if netPeriodMeasurementCount == 1:
+            netPreviousTotalEnergy = cumulativeEnergy
+        self.set_variable("purchasedEnergyPeriodNet" , round(purchasedEnergyPeriodNet,2))
+        print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
+
+
+        
+        #TODO: OVERLOAD CONTROL!!!    
+        self.setLoad(loadsA[0],loadsA[1],loadsA[2])             
+    
+        current_conditions = check_conditions()
+
+        
+        #TODO:miksi eri loopit, randomin takia?, vai jäänne
+        for channel in channels:
+            target = channel.getTarget(current_conditions)
+            #print(channel.name, " got target: ",target)
+        
+    
+        random_channels = channels.copy()
+        random.seed()
+        random.shuffle(random_channels) # set up load in random order
+        
+
+        for channel in random_channels:
+            target = channel.getTarget(current_conditions)  
+            channels[channel.idx].target = target 
+            if target["keep_up"]:
+                #channel.on = True
+                loadChange = channel.loadUp() #
+                if abs(loadChange) > 0: #only 1 v´chnage at one time, eli ei liikaa muutosta minuutissa
+                    break
+            elif not target["keep_up"] and target["condition"]: 
+                loadChange = channel.loadDown()
+                #channel.on = False
+                if abs(loadChange) > 0:
+                # print ("loadDown loadChange:", loadChange)
+                    break
+    
+        self.set_status_unpropagated() # latest status not propagated to clients
+        # export to influxDB
+
+        reportState(price_fields)
+
+
+
+
+
+
 
 
 # Stores sensor values (from thermometers)
@@ -356,6 +486,7 @@ class Channel:
         self.gpio = data["gpio"]
 
         self.t = data.get("reachedWhen",None)
+        self.upIf = data.get("upIf",None)
         
         self.loadW =  data.get("loadW",0)
         self.up = False
@@ -364,6 +495,9 @@ class Channel:
 
         lines = []  
         
+        if not "lines" in data:
+            data["lines"] = [1,2,3]
+
         if "lines" in data and len(data["lines"])>0:
             current_per_phase = round((self.loadW /s.volts_per_phase)/len(data["lines"]),2)
         else:
@@ -399,7 +533,7 @@ class Channel:
         self.targets = [] 
         if "targets" in data:
             for target in data["targets"]:
-                tn = {"condition" : target["condition"], "sensor" : target.get("sensor",None), "reachedWhen": target.get("reachedWhen",None),"valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
+                tn = {"condition" : target["condition"], "sensor" : target.get("sensor",None), "upIf": target.get("upIf",None),"valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
                 self.targets.append(tn) 
         """
         print()
@@ -421,17 +555,16 @@ class Channel:
                 # uusi versio tulossa tähän
                 # yksinkertaista iffittelyä lopullisessa
                 
-                if "reachedWhen" in target and target["reachedWhen"] is not None:
-                    target_reached,error_in_test = test_formula( target["reachedWhen"],self.name+ ":"  +target["condition"]  )  
+                if "upIf" in target and target["upIf"] is not None:
+                    keep_up,error_in_test = test_formula( target["upIf"],self.name+ ":"  +target["condition"]  )  
                     if error_in_test: #possibly error in target t, try next one (should we panic and break )
                         #TODO: error in formula (e.g. wrong variable) should be reported somehow - error list...
                         continue # try next target
                     else: #found first matching target
-                        # käytetään  reached, condition 
-                        return {"condition" : target["condition"],"reached":target_reached,"reachedWhen": target["reachedWhen"] }    
+                        return {"condition" : target["condition"],"keep_up":keep_up,"upIf": target["upIf"] }    
 
         
-        return {"condition" : None,"reached":True} # no matching target
+        return {"condition" : None,"keep_up":False} # no matching target
     
     def getLine(self,l):
         for line in self.lines:
@@ -519,8 +652,8 @@ def check_conditions():
     #TODO: spotlowesthours - kuluvan päivän x halvinta tuntia, tässä pitäisi kyllä ottaa myös kuluneet
     #voisi ottaa ko päivän kuluneet ja koko tiedetyn tulevaisuuden
     for condition_key,condition in conditions.items(): # check 
-        if "c" in condition:
-            condition_returned, error_in_test = test_formula( condition["c"],condition_key)  
+        if "enabledIf" in condition:
+            condition_returned, error_in_test = test_formula( condition["enabledIf"],condition_key)  
             if condition_returned and not error_in_test: 
                 ok_conditions.append(condition_key)      
 
@@ -563,13 +696,16 @@ def test_formula(formula,info):
 
         
 def reportState(price_fields): 
-    temperature_fields = {}
-    state = {}
+    global powerGuru
     condition_fields = {}
     channel_fields = {}
+
     # via Telegraf relay to influxDB
     #TODO: add to parameters
-    ifclient = InfluxDBClient(url = "http://127.0.0.1:8086",token="")
+    ifClientUrl = powerGuru.get_setting("InfluxDBClientUrl","http://127.0.0.1:8086")
+    ifClientToken = powerGuru.get_setting("InfluxDBClientToken","")
+
+    ifclient = InfluxDBClient(url = ifClientUrl,token=ifClientToken)
     try:
         json_body = []
         
@@ -654,135 +790,6 @@ def get_current_period_rank(window_duration_hours):
     print("****Cannot find current_period_start_ts in the window", current_period_start_ts)
     return None
 
-
-
-# this is the main function called by Reactor event handler and defined in task.LoopingCall(doWork)    
-def recalculate():
-    print ('#recalculate')
-    global powerGuru
-    global purchasedEnergyPeriodNet, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
-    global current_conditions
-    global gridenergy_data, temperature_data, dayahead_list, forecastpv_list
-  
-    
-    #todo: check data age
-    if gridenergy_data is None or "fields" not in gridenergy_data:
-        print("No gridenergy_data")
-        return False
-    
-    #TODO: read from cache , check validity (in init) , handle cases if not used
-    #if dayahead_list is None or forecastpv_list is None:
-    #    return False
-
-
-    importTot = 0
-    price_fields = {}
-    loadsA = [0,0,0]
-    
-    # Go through all connected thermometers
-    
-    dtnow = datetime.now()
-    tz_local = pytz.timezone(powerGuru.get_setting("timeZoneLocal")) 
-    now_local = dtnow.astimezone(tz_local).isoformat()
-    
-    #TODO: check how often to run
-    #get current prices and expected future solar, e.g. solar6h is solar within next 6 hours
-    # block updates?, should we get it once a hour
-    aggregate_solar_forecast()
-
-        
-        
-    loadsA[0] = gridenergy_data["fields"]["AL1"]
-    loadsA[1] = gridenergy_data["fields"]["AL2"]
-    loadsA[2] = gridenergy_data["fields"]["AL3"]
-   
-    importTot = gridenergy_data["fields"]["Wsys"]
-    cumulativeEnergy = gridenergy_data["fields"]["kWhTOT"]
-    
-    
-    price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
-    price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
- 
-
-    # sales only for negative import
-    price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
-    price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
-        
-    #TODO: tarvitaanko, yösähkö erikseen, tää olisi hyvä parametroida
-    local_time = now_local[11:19] 
-    #TODO nämä parametreistä
-    if "07:00:00" < local_time < "22:00:00":# and dtnow.isoweekday()!=7: 
-        price_fields[ "purchaseDay"]= (importTot if importTot>0 else 0.0)
-        price_fields[ "purchaseNight"]= 0.0
-    else:
-        price_fields[ "purchaseNight"]= (importTot if importTot>0 else 0.0)
-        price_fields[ "purchaseDay"]= 0.0
-    
- 
-  
-    # new, todo: tähän tallennukset influxiin
-    if netPreviousTotalEnergy == -1:
-        netPreviousTotalEnergy = cumulativeEnergy
-        
-    currentNettingPeriod = int(time.time()/(powerGuru.nettingPeriodMinutes*60))
-
-    if netPreviousTotalEnergyPeriod != currentNettingPeriod:
-        # this should probably be run when a new hour (period) starts, not always
-        aggregate_dayahead_prices()
-
-        netPreviousTotalEnergyPeriod =  currentNettingPeriod
-        netPeriodMeasurementCount = 0 
-#TODO: tsekkaa miksi purchasedEnergyPeriodNet nollaantuu viivellä periodin vaihtuessa
-    
-    purchasedEnergyPeriodNet = cumulativeEnergy-netPreviousTotalEnergy
-    netPeriodMeasurementCount += 1
-    if netPeriodMeasurementCount == 1:
-        netPreviousTotalEnergy = cumulativeEnergy
-    powerGuru.set_variable("purchasedEnergyPeriodNet" , round(purchasedEnergyPeriodNet,2))
-    print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
-
-
-      
-    #TODO: OVERLOAD CONTROL!!!    
-    powerGuru.setLoad(loadsA[0],loadsA[1],loadsA[2])             
- 
-    current_conditions = check_conditions()
-
-    
-    #TODO:miksi eri loopit, randomin takia?, vai jäänne
-    for channel in channels:
-        target = channel.getTarget(current_conditions)
-        #print(channel.name, " got target: ",target)
-    
-  
-    random_channels = channels.copy()
-    random.seed()
-    random.shuffle(random_channels) # set up load in random order
-    
-
-    for channel in random_channels:
-        target = channel.getTarget(current_conditions)  
-        channels[channel.idx].target = target 
-        #print ("recalculate", channel.code,"target:",target)  
-        if not target["reached"]:
-            #channel.on = True
-            loadChange = channel.loadUp() #
-            if abs(loadChange) > 0: #only 1 v´chnage at one time, eli ei liikaa muutosta minuutissa
-                break
-
-        elif target["reached"] and target["condition"]: 
-            #print("Channel {:s} ,condition {:s}, target reached ".format(channel.code,target["condition"]))
-            loadChange = channel.loadDown()
-            #channel.on = False
-            if abs(loadChange) > 0:
-               # print ("loadDown loadChange:", loadChange)
-                break
-  
-
-    powerGuru.set_status_unpropagated()
-    # export to influxDB
-    #TODO: write current_conditions etc calculated  - price_fields - fields to influx
-    reportState(price_fields)
 
 
 
@@ -964,7 +971,7 @@ async def process_telegraf_post(request):
             #powerGuru.print_variables() #debugging
             gridenergy_data = gridenergy_new[0]
             #TODO: trigger recalculate also after other updates but wait thats all requests in the incoming Telegraf buffer are processed
-            recalculate()
+            powerGuru.recalculate()
         
         temperature_new = filtered_fields(obj["metrics"],"temperature",False)
         if len(temperature_new)>0:

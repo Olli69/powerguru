@@ -1,11 +1,6 @@
-## A few words in Finnish
-Mikäli olet kiinnostunut saamaan lisätietoa tästä voit lähettää tekijälle sähköpostia olli@rinne.fi. Keskustelua voisi tietysti käydä myös FB:n Aurinkoenergia-ryhmässä, josta ajatus tämän julkaisusta tuli. Voit myös halutessassi avata issuen suomeksi. Käytännön syistä dokumentaatio on kuitenkin ainakin toistaiseksi vain englanniksi.
-
-Ohjelma getfcstandprices.py hakee paikallisen aurinkoenergiaennusteen ja Nordpoolin day-ahead SPOT-tuntihinnat (vaatii ilmaisen API-avaimen). SPOT-hintoja ei vielä käytetä ohjauksessa, mutta ominaisuus on melko helppo lisätä ja tekijä mielellään on mukana tässä. Käytännössä hintaohjauksen voisi tehdä lisäämällä esimerkiksi ehtokriteereihin (laajentamalla funtiota check_conditions ) totuusarvomuuttujat  (boolean) spotlow5 (true, jos kuluva tunti kuuluu 5 halvimman tunnin joukkoon), jne.spotlow10, spothigh10, spothigh5 . Ehtoihin voisi tietysti myös lisätä myös absoluuttiseen hintaan viittaavat spotpricebelow and spotpriceabove-attribuutit, jolloin esim. "spotpricebelow" : 3.0 on voimassa kun SPOT-hinta on alle 3 c/kWh. jne .
-
 ## Idea
 TO BE UPDATED...
-Powerguru manages electric loads (especially 1 or 3 phase water heaters). It can heat up the boilers when then electricity is cheap, for example when you have excess solar power or nightime. It can also optimize water heating using solar energy forecast (http://www.bcdcenergia.fi/ for forecast in Finland). Current version can read RS485/Modbus enables electric meters and DS18B20 temperatare sensors. It can also fetch Nordpool day-ahead spot prices. 
+Powerguru manages electric loads, for example water heaters or other conrollable devices/energy storages. It can heat up the boilers when then electricity is cheap, for example when you have excess solar power or nightime. It can also optimize water heating using solar energy forecast (http://www.bcdcenergia.fi/ for forecast in Finland). Current version can read RS485/Modbus enabled electric meters and DS18B20 temperatare sensors. It can also fetch Nordpool day-ahead spot prices. 
 
 It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "conditions", which are enabled if all the criterias for the condition match.   Powerguru is tested with Raspberry Pi (2)
 
@@ -51,21 +46,23 @@ Dashboard is a tiny web service showing current state of Powerguru service. You 
 
 ## Concept
 TO BE UPDATED...
-Main program powerguru.py runs function doWork and does following once in a minute (parameter READ_INTERVAL) in 
-1. reads ModBus capable electic meter and temperature sensors .
-2. Insert new values to InfluxDB
-3. Checks which conditions are valid in that moment. Multiple conditions can be valid at the same time,
-4. Searches targets of each actuator in order. E.g. target {"condition" : "sun", "sensor" : "b2out", "valueabove": 80} means that if sun (net sales) condition is true, sensor b2out target value if 80 C. If condition "sun" is true but sensor "b2out" temperature is below 80 then the system tries to switch on more lines (if possible). If temperature is above 80, it can switch of the lines (of that actuator).
-5. Does actual switching with lineResource.setLoad . This function can also switch of the lines if there is too much load on a phase.
+1. Main program powerguru.py listens data updates from various sources (sensors, price info, energy forecast etc) via Telegraf service. 
+2. **Recalculate**-process checks, based on the data and given rules, which of defined conditions are enabled at the moment. Multiple conditions can be valid at the same time
+3. Searches targets of each channel in order. E.g. target {"condition" : "netsales", "upIf" : "sensor1<90"} means that if the "netsales" condition is enabled (more solar production than consumption locally) then upIf formula is tested. If sensor1 value is below 90 then the channel will be up (e.g. boiler will be on) until sensor1 value reaches 90
+4. Does actual switching with lineResource.setLoad . This function can also switch of the lines if there is too much load on a phase.
+
+
 ### Conditions
-At any time multiple conditions can be effective. Conditions are enabled based on one or more criterias, which should be fulfilled:
-- current time, criteria defined with _starttime_ (e.g. "04:00:00") and _endtime_ (e.g. "07:00:00)
-- current date, defined with parameters _dayfirst_ and _daylast_  -  format MM-DD,  e.g. "02-15" is February 15
-- solar forecast, attributes _solar12above_ and  _solar12below_ are defined. _"solar12above" : 5.0_ means that expected cumulative solar power within next 12 h should be 5kWh or more (with 1 kWp panels)
-- in the future there could be criterias for price-based selection, e.g. _spotpricebelow_
-Condition parameter are defined in settings.py file.
-### Actuators
-Currently only (1 or 3 line) boilers/heaters are supported. Actuator defines GPIOs of all phases (1 or 3) and target values (temperatures) in different conditions. Targets are tested in order and first matching target is used. Actuators are defined in settings.py file.
+At any time multiple conditions can be effective. Conditions are enabled if "enabledIf" formula value is True. In the formula use PowerGuru variables, e.g. hhmm (current time), mmdd (current date), purchasedEnergyPeriodNet, solar24h (solar forecast for 24 hours, energyPriceSpot (current energy spot price), spotPriceRank24h (current spot price rank related to future hours). Full list of available variables you can see at the dashboard. See more details in the configuration file [settings/conditions.json](settings/conditions.json)
+
+Condition parameters are defined in settings/conditions.json
+
+### Channels
+Currently boilers/heaters are supported or other heaters. Channel defines rules for switching channel up/down. Targets are tested in order and first matching target is used. [settings/channels.json](settings/channels.json)
+
+![ULN2003A based Raspberry Pi switch controller hat for 12/24 DC relays](https://github.com/Olli69/powerguru/blob/main/docs/img/raspi-protohat.jpg?raw=true)
+
+
 ### Sensors
 Currently only DS18B20 1-wire temperature sensors are supported. Sensors are identified by id and  defined in settings.py file.
 
