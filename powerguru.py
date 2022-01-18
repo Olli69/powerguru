@@ -86,15 +86,17 @@ def aggregate_dayahead_prices():
         for price_entry in dayahead_list:
             if price_entry["timestamp"] < time.time() and price_entry["timestamp"] > time.time()-3600:
                 energyPriceSpot = price_entry["fields"]["energyPriceSpot"]
+                powerGuru.set_variable("energyPriceSpot" , round(energyPriceSpot,2))
 
-    powerGuru.set_variable("energyPriceSpot" , round(energyPriceSpot,2))
+   
 
     # now calculate spot price rank of current hour in different window sizes
     
     for bCode in powerGuru.dayaheadWindowBlocks:
         rank = get_current_period_rank(bCode)
-        variable_code = s.spot_price_variable_code.format(bCode)
-        powerGuru.set_variable(variable_code , rank)
+        if rank is not None:
+            variable_code = s.spot_price_variable_code.format(bCode)
+            powerGuru.set_variable(variable_code , rank)
 
 
 def aggregate_solar_forecast():
@@ -316,7 +318,6 @@ class PowerGuru:
         #if dayahead_list is None or forecastpv_list is None:
         #    return False
 
-
         importTot = 0
         price_fields = {}
         loadsA = [0,0,0]
@@ -331,21 +332,17 @@ class PowerGuru:
         #get current prices and expected future solar, e.g. solar6h is solar within next 6 hours
         # block updates?, should we get it once a hour
         aggregate_solar_forecast()
-
-            
-            
+    
         loadsA[0] = gridenergy_data["fields"]["AL1"]
         loadsA[1] = gridenergy_data["fields"]["AL2"]
         loadsA[2] = gridenergy_data["fields"]["AL3"]
     
         importTot = gridenergy_data["fields"]["Wsys"]
         cumulativeEnergy = gridenergy_data["fields"]["kWhTOT"]
-        
-        
+             
         price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
         price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
     
-
         # sales only for negative import
         price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
         price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
@@ -360,8 +357,6 @@ class PowerGuru:
             price_fields[ "purchaseNight"]= (importTot if importTot>0 else 0.0)
             price_fields[ "purchaseDay"]= 0.0
         
-    
-    
         # new, todo: tähän tallennukset influxiin
         if netPreviousTotalEnergy == -1:
             netPreviousTotalEnergy = cumulativeEnergy
@@ -382,26 +377,21 @@ class PowerGuru:
             netPreviousTotalEnergy = cumulativeEnergy
         self.set_variable("purchasedEnergyPeriodNet" , round(purchasedEnergyPeriodNet,2))
         print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
-
-
         
         #TODO: OVERLOAD CONTROL!!!    
         self.setLoad(loadsA[0],loadsA[1],loadsA[2])             
     
         current_conditions = check_conditions()
 
-        
         #TODO:miksi eri loopit, randomin takia?, vai jäänne
         for channel in channels:
             target = channel.getTarget(current_conditions)
             #print(channel.name, " got target: ",target)
         
-    
         random_channels = channels.copy()
         random.seed()
         random.shuffle(random_channels) # set up load in random order
         
-
         for channel in random_channels:
             target = channel.getTarget(current_conditions)  
             channels[channel.idx].target = target 
@@ -780,13 +770,14 @@ def get_current_period_rank(window_duration_hours):
 
     price_window_sorted = get_spot_sliding_window_periods(current_period_start_ts, window_duration_hours)
     rank = 1
-    for entry in price_window_sorted:
-        if current_period_start_ts == entry["ts"]:
-            #print("window size hours:", window_duration_hours, ", rank:", rank )
-            #pp.pprint(price_window_sorted)
-            return rank
-        rank += 1
-    
+    if price_window_sorted is not None:
+        for entry in price_window_sorted:
+            if current_period_start_ts == entry["ts"]:
+                #print("window size hours:", window_duration_hours, ", rank:", rank )
+                #pp.pprint(price_window_sorted)
+                return rank
+            rank += 1
+        
     print("****Cannot find current_period_start_ts in the window", current_period_start_ts)
     return None
 
