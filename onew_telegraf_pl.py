@@ -7,6 +7,7 @@ import json
 import settings as s
 import time
 import os
+import random
 import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
 GPIO.setwarnings(False)
 
@@ -77,28 +78,31 @@ def read_thermometers():
 # this could reset 1-wire if gpio 17 used as bus voltage input
 #TODO: set parameters
 def reset_onewire():
-    global sensor_settings
-    w1DeviceFolder = sensor_settings["w1DeviceFolder"]
-    for sensor in sensor_settings["sensors"]:
-        path = w1DeviceFolder + "/" + sensor["id"]
-        if (os.path.isdir(path) == False):
-            print ("trying to reset ", path)
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(17, GPIO.OUT)
-            GPIO.output(17, GPIO.LOW)
-            time.sleep(3)
-            GPIO.output(17, GPIO.HIGH)
-            time.sleep(5)      
+    powerGPIO = sensor_settings.get("powerGPIO",17)
+
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(powerGPIO, GPIO.OUT)
+    GPIO.output(powerGPIO, GPIO.LOW)
+    time.sleep(3)
+    GPIO.output(powerGPIO, GPIO.HIGH)
+    time.sleep(5)     
     
 # report
 def onewire_to_telegraf():
     global sensor_settings
       
     sensor_settings = s.read_settings(s.sensor_settings_filename)
-  
-    #reset_onewire() #koska ajettaisiin
+    random.seed()
+    if random.randint(0, 100)>95:
+        reset_onewire() #koska ajettaisiin, nyt menee randomilla
 
     thermometer_fields = read_thermometers()
+
+    #reset and retry
+    if not thermometer_fields:
+        reset_onewire()
+        thermometer_fields = read_thermometers()
+
     
     if not thermometer_fields:
         return False
