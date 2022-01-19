@@ -64,7 +64,7 @@
 		"enabledIf": "energyPriceSpot>15"
 	},
 	"spotlow": {
-		"desc": "Spot price is low and one of 6 cheapest hour",
+		"desc": "Spot price is low and now it is one of 6 cheapest hour in 24 h",
 		"enabledIf": "energyPriceSpot<4.0 and spotPriceRank24h<=6"
 	},
 	"spotpeak12h": {

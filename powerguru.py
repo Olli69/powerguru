@@ -474,6 +474,10 @@ class Channel:
         self.code = code #ch + 1-indexed nbr
         self.name = data["name"]
         self.gpio = data["gpio"]
+        self.sensor = data.get("sensor",None)
+        self.defaultTarget = data.get("defaultTarget",None)
+
+        
 
         self.t = data.get("reachedWhen",None)
         self.upIf = data.get("upIf",None)
@@ -523,7 +527,7 @@ class Channel:
         self.targets = [] 
         if "targets" in data:
             for target in data["targets"]:
-                tn = {"condition" : target["condition"], "sensor" : target.get("sensor",None), "upIf": target.get("upIf",None),"valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
+                tn = {"targetConditions" : target["targetConditions"], "sensor" : target.get("sensor",None), "upIf": target.get("upIf",None),"valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
                 self.targets.append(tn) 
         """
         print()
@@ -540,18 +544,23 @@ class Channel:
     def getTarget(self,current_conditions):
         # get first channel target where condition is matching
         for target in self.targets:
-            if target["condition"] in current_conditions:
-                #print("target condition is in current conditions",target["condition"])
-                # uusi versio tulossa tähän
-                # yksinkertaista iffittelyä lopullisessa
-                
+#targetConditions            
+#            if target["condition"] in current_conditions:
+            matching_condition = None
+            if "targetConditions" in target:
+                for condi in target["targetConditions"]:
+                    if condi in current_conditions:
+                        matching_condition = condi
+                        break
+
+            if matching_condition:
                 if "upIf" in target and target["upIf"] is not None:
-                    keep_up,error_in_test = test_formula( target["upIf"],self.name+ ":"  +target["condition"]  )  
+                    keep_up,error_in_test = test_formula( target["upIf"],self.name+ ":"  +matching_condition  )  
                     if error_in_test: #possibly error in target t, try next one (should we panic and break )
-                        #TODO: error in formula (e.g. wrong variable) should be reported somehow - error list...
+                        #TODO: error in formula (e.g. wrong variable) should be reported somehow to dashboard - error list...
                         continue # try next target
                     else: #found first matching target
-                        return {"condition" : target["condition"],"keep_up":keep_up,"upIf": target["upIf"] }    
+                        return {"condition" : matching_condition,"keep_up":keep_up,"upIf": target["upIf"] }    
 
         
         return {"condition" : None,"keep_up":False} # no matching target
@@ -802,12 +811,12 @@ def load_program_config():
 
     #channels_list
     channels_list = s.read_settings(s.channels_filename) 
-    idx = 0
-    for channel in channels_list:
+    #idx = 0
+    for idx,channel in enumerate(channels_list):
         channel =  Channel(idx,"ch"+str(idx+1),channel)
         channels.append(channel)
          
-        idx += 1
+        #idx += 1
 
     # conditions
     conditions = s.read_settings(s.conditions_filename) 
@@ -918,6 +927,83 @@ def process_sensor_data(temperature_data):
 #async def now_new_data():
 #    return 42
 
+async def serve_editor(request):
+    # https://bpmn.io/blog/posts/2021-form-js-visual-form-editing-and-embedding.html
+
+    # testing channel editot
+    #todo authetication
+    # 
+    channelIdx = 0 # 0-indexed
+    channel = channels[channelIdx]
+
+    """
+
+    https://formbuilder.online/docs/formBuilder/actions/save/
+
+    Jos mennään tällä targetlistalla, niin targettien järjestystä ei pysty muuttamaan ( vai pystyiskö tekemään jotain nappeja?)
+    Mikä riittäisi targettien muuttamiseen - jos olisi vaan nappi ,josta saa ylös (alas) - siinä vaan mahdollisesti joutuisi loadaamaan koko formin, mikä ei olisi käytön kannalta hyvä.
+    Components on kyllä lista, jonka voisi varmaa sortata uudestaa, mutta pitääkö ajaa sitten createForm uusiksi.
+    Tällöin todennäköisesti päivitetty data pitäisi ottaa takaisin talteen väliaikasesti tai sitten tehdä aina lopullinen save.
+    Data voisi ottaa joka tapauksessa samaan tietorakenteeseen kuin päivitetään jqueryllä.
+
+    Tai sitten meillä olisi prioriteettikenttä. Ongelmana, että vaikea hahmottaa ja vie tilaa.
+
+    Jos ei pystyisi muuttamaan, niin voi tietysti miettiä riittääkö jos conditionit olisivat järjestysessä, joka olis globaalis eli esim. netsales olsii poikkeus - tässä tapauksessa muuten sama logiika kuin nyt.
+    Jos globaali järjestys riittävä, niin hyvänä puolena, että channel-näyttö pysyisi selkeämpänä.
+
+    Logiikan kannalta toinen vaihtoehto olisi, että katsottaisiin aina esim. targettien maksimi niistä jotka täyttää ehdot eikä välitetä järjestyksestä. 
+    Ongelma on että poikkeusksia alaspäin ei voisi helposti tehdä - pärjätäänkö ilman vai voisiko kiertää?
+
+Tehdään näin:
+Testaa vielä, että save toimii ja katso olisiko Formbuilder kuitenkin tähän parempi. Siinä toimisi multiselect.
+Channel näytössä olisi perustiedot suunnilleen kuten nyt ja kiinteä, esim. 6  rivistö,
+jossa multiselect condition ja sensorin arvo
+
+    """
+
+
+    print("www/editor.html")
+    with open("www/editor2.html", 'r', encoding='utf8') as f:
+       # print("channels:", json.dumps(channels_list))
+        text_original = f.read()
+       # print("text_original:", text_original)
+        fields = []      
+        for condition_key,condition in conditions.items(): 
+            fields.append({"label": "{} ({})".format(condition["desc"],condition_key), "type" : "number"
+            , "id": "field_condition_{}".format(condition_key), "key" : "keycond{}".format(condition_key),"validate": {"required": False, "min":0,"max":100}})
+
+
+        text_out = text_original.replace("#targetFields#", json.dumps(fields).replace("[","").replace("]",""))
+        formData = {}
+        formData["channel_id"] = channel.code
+        formData["channel_name"] = channel.name
+        formData["channel_gpio"] = channel.gpio
+        formData["channel_loadW"] = channel.loadW
+        formData["channel_sensor"] = channel.sensor
+
+       
+        if len(channel.lines):
+            formData["channel_lines"] = "3-phase"
+        else:
+            formData["channel_lines"] = channel.lines[0]["l"]
+
+  
+        #sensor list
+        sensor_values = []
+        for sensor in sensorData.sensors:
+            sensor_values.append({ "value" : sensor["code"], "label" :  "{} ({})".format(sensor["name"],sensor["code"]) })
+        text_out = text_out.replace("#sensor_values#", json.dumps(sensor_values))
+       
+
+        formData["channel_default_target"]= channel.defaultTarget
+       # formData["channel_load"] = channel.code
+        text_out = text_out.replace("#formData#", json.dumps(formData))
+       
+       # print(text_out)
+    return Response(text=text_out, content_type='text/html');
+    #initialJson
+    #return web.FileResponse('www/editor.html')
+
 async def status(request):
     global powerGuru
     async with sse_response(request) as resp:
@@ -946,11 +1032,6 @@ async def process_telegraf_post(request):
 
     obj = await request.json()
     #pp.pprint(obj)
-   
-
-
-  
-
 
     #TODO: different metrics could be parametrized, so addional metrics (eg. PV inverter data) could be added without code changes
     if "metrics" in obj:
@@ -1006,6 +1087,7 @@ def main(argv):
     app.router.add_route('GET', '/index.html', index)
     app.router.add_route('GET', '/status', status)
     app.router.add_route('POST', '/telegraf', process_telegraf_post)
+    app.router.add_route("GET", '/editor', serve_editor)
 
    
     web.run_app(app, host='0.0.0.0', port=8080)
