@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8 
+from multiprocessing.dummy.connection import families
 import traceback #error reporting
 import sys
 import json
@@ -926,6 +927,50 @@ def process_sensor_data(temperature_data):
 #aiohttp
 #async def now_new_data():
 #    return 42
+def create_channel_form(channel):
+  
+    print("channel.sensor:", channel.sensor)
+    form_data = []
+    form_data.append({ "type": "hidden", "name": "channel_code", "access": False,"value": channel.code})
+    form_data.append({ "type": "header","subtype": "h2", "label": "Channel ch1", "access": False})
+    form_data.append({"type": "text","required": False, "label": "code", "className": "form-control", "name": "id","access": False,  "subtype": "text","value": channel.code, "disabled": True})
+    form_data.append({"type": "text","required": True, "label": "name", "className": "form-control", "name": "name","access": True,  "subtype": "text","value":channel.name})
+    form_data.append({"type": "number","required": True, "label": "Load", "className": "form-control", "name": "max_load","access": True,  "description": "Max load in watts (W)","min": 0, "max": 10000,"step": 100, "value": channel.loadW})
+    form_data.append({"type": "number","required": True, "label": "GPIO", "className": "form-control", "name": "gpio","access": False,  "description": "Compoter GPIO","min": 0, "max": 37,"step": 1, "value" :  channel.gpio,"disabled": True})
+    
+    if len(channel.lines)==3:
+        lines = 0
+    else:
+        lines = channel.lines[0]["l"]
+
+    form_data.append({"type": "radio-group", "required": True, "label": "Lines","inline": False, "name": "group_lines","access": False,"other": False, "values": [ {"label": "3-phase","value": "3phase","selected": (lines==0)} , { "label": "L1, 1-phase","value": "1","selected": (lines==1)}  , { "label": "L1, 1-phase","value": "1","selected": (lines==2)} , { "label": "L1, 1-phase","value": "1","selected": (lines==3)}]})
+
+    sensor_values = []
+    for sensor in sensorData.sensors:
+        selected = (sensor["code"] == channel.sensor)
+        sensor_values.append({ "value" : sensor["code"], "label" :  "{} ({})".format(sensor["name"],sensor["code"]), "selected": selected })
+    
+    form_data.append({"type": "select", "required": True, "label": "Sensor",
+      "className": "form-control","name": "select_sensor","access": False, "multiple": False,
+      "values": sensor_values})
+
+ 
+    form_data.append({ "type": "paragraph", "subtype": "p", "label": "Use this target if no exception below matches. Condition targets are in order and the first (1,2...) matching target will be target value for the channel. If there is no match , default the value is used.", "access": False })
+
+    condition_values = []
+    for condition_key,condition in conditions.items(): 
+        condition_values.append({ "value" : "field_condition_{}".format(condition_key), "label" :  "{} ({})".format(condition["desc"],condition_key), "selected": False })
+    
+    for i in range(3): #TODO:range could come from parameters
+        form_data.append({ "type": "paragraph", "subtype": "p", "label": "{}. conditional target value".format(i+1), "access": False })
+        form_data.append({"type": "select","required": False,"description": "One or more conditions for this target","className": "form-control","name": "targets_{}".format(i),"access": False,"multiple": True,"values": condition_values})
+        form_data.append({"type": "number","required": False, "label": "target value", "className": "form-control", "name": "target_value_{}".format(i),"access": False,  "description": "Target value for selected conditions","min": 0, "max": 100,"step": 1})
+ 
+    form_data.append({"type": "number","required": True, "label": "Default target value", "className": "form-control", "name": "target_default_value","access": False,  "description": "Target value if no condition matches","min": 0, "max": 100,"step": 1})
+    form_data.append({"type": "button", "subtype": "submit", "label": "Save", "className": "btn-default btn", "name": "save","access": False, "style": "default"})
+ 
+    return form_data
+    
 
 async def serve_editor(request):
     # https://bpmn.io/blog/posts/2021-form-js-visual-form-editing-and-embedding.html
@@ -962,47 +1007,30 @@ jossa multiselect condition ja sensorin arvo
     """
 
 
-    print("www/editor.html")
-    with open("www/editor2.html", 'r', encoding='utf8') as f:
-       # print("channels:", json.dumps(channels_list))
-        text_original = f.read()
-       # print("text_original:", text_original)
-        fields = []      
-        for condition_key,condition in conditions.items(): 
-            fields.append({"label": "{} ({})".format(condition["desc"],condition_key), "type" : "number"
-            , "id": "field_condition_{}".format(condition_key), "key" : "keycond{}".format(condition_key),"validate": {"required": False, "min":0,"max":100}})
-
-
-        text_out = text_original.replace("#targetFields#", json.dumps(fields).replace("[","").replace("]",""))
-        formData = {}
-        formData["channel_id"] = channel.code
-        formData["channel_name"] = channel.name
-        formData["channel_gpio"] = channel.gpio
-        formData["channel_loadW"] = channel.loadW
-        formData["channel_sensor"] = channel.sensor
-
-       
-        if len(channel.lines):
-            formData["channel_lines"] = "3-phase"
-        else:
-            formData["channel_lines"] = channel.lines[0]["l"]
-
   
-        #sensor list
-        sensor_values = []
-        for sensor in sensorData.sensors:
-            sensor_values.append({ "value" : sensor["code"], "label" :  "{} ({})".format(sensor["name"],sensor["code"]) })
-        text_out = text_out.replace("#sensor_values#", json.dumps(sensor_values))
-       
+    with open("www/editor3.html", 'r', encoding='utf8') as f:
+       # print("channels:", json.dumps(channels_list))
+        text_out = f.read()
 
-        formData["channel_default_target"]= channel.defaultTarget
-       # formData["channel_load"] = channel.code
-        text_out = text_out.replace("#formData#", json.dumps(formData))
+
+    formData_str = json.dumps(create_channel_form(channel), indent=None, separators=(",",":"))
+    #print(formData_str)
+    text_out = text_out.replace("#formData#", formData_str)
        
        # print(text_out)
     return Response(text=text_out, content_type='text/html');
     #initialJson
     #return web.FileResponse('www/editor.html')
+
+
+async def save_editor(request):
+    print("can_read_body",request.can_read_body)
+    tekst = await request.text()
+    pp.pprint(tekst)
+    #obj = await request.json()
+    print("save_editor")
+    #pp.pprint(obj)
+
 
 async def status(request):
     global powerGuru
@@ -1088,6 +1116,7 @@ def main(argv):
     app.router.add_route('GET', '/status', status)
     app.router.add_route('POST', '/telegraf', process_telegraf_post)
     app.router.add_route("GET", '/editor', serve_editor)
+    app.router.add_route("POST", '/editor', save_editor)
 
    
     web.run_app(app, host='0.0.0.0', port=8080)
