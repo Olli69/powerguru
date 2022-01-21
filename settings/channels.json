@@ -25,27 +25,24 @@
 			3
 		],
 		"sensor" : "sensor1",
-		"defaultTarget" : "55",
 		"targets": [
 			{
 				"targetConditions": ["netsales"],
-				"upIf" : "sensor1<90"
-			},
-			{
-				"targetConditions": ["darkdaycoming"],
-				"upIf" : "sensor1<70"
-			},
-			{
-				"targetConditions": ["sunnydaycoming","evening"],
-				"upIf" : "sensor1<50"
+				"upIf" : "sensor1<90",
+				"type" : "sensorbelow",
+				"value" : 90
 			},
 			{
 				"targetConditions": ["evening"],
-				"upIf" : "sensor1<50"
+				"upIf" : "sensor1<50",
+				"type" : "sensorbelow",
+				"value" :50
 			},
 			{
 				"targetConditions": ["default"],
-				"upIf" : "sensor1<60"
+				"upIf" : "sensor1<60",
+				"type" : "sensorbelow",
+				"value" :60
 			}
 		]
 	},
@@ -61,11 +58,15 @@
 		"targets": [
 			{
 				"targetConditions": ["netsales"],
-				"upIf" : "sensor2<10"
+				"upIf" : "sensor2<10",
+				"type" : "sensorbelow",
+				"value" :10
 			},
 			{
 				"targetConditions": ["default"],
-				"upIf" : "sensor2<10"
+				"upIf" : "sensor2<10",
+				"type" : "sensorbelow",
+				"value" :10
 			}
 		]
 	},
@@ -79,11 +80,14 @@
 		"targets": [
 			{
 				"targetConditions": ["netsales"],
-				"upIf" : "True"
+				"upIf" : "True",
+				"type" : "up"
+
 			},
 			{
 				"targetConditions": ["default"],
-				"upIf" : "True"
+				"upIf" : "True",
+				"type" : "up"
 			}
 		]
 	},
@@ -97,11 +101,13 @@
 		"targets": [
 			{
 				"targetConditions": ["netsales"],
-				"upIf" : "True"
+				"upIf" : "True",
+				"type" : "up"
 			},
 			{
 				"targetConditions": ["default"],
-				"upIf" : "False"
+				"upIf" : "False",
+				"type" : "down"
 			}
 		]
 	},
@@ -115,11 +121,13 @@
 		"targets": [
 			{
 				"targetConditions": ["netsales"],
-				"upIf" : "True"
+				"upIf" : "True",
+				"type" : "up"
 			},
 			{
 				"targetConditions": ["default"],
-				"upIf" : "False"
+				"upIf" : "False",
+				"type" : "down"
 			}
 		]
 	},

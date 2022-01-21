@@ -55,7 +55,7 @@
 		"desc": "päivähinnoittelu",
 		"enabledIf": "hhmm >= '0700' and hhmm <'2200'"
 	},
-	"default": {
+	"default": { 
 		"desc": "Matches always",
 		"enabledIf": "hhmm >= '0000' and hhmm <='2359'"
 	},
