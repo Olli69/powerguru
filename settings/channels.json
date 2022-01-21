@@ -1,148 +1,165 @@
-# Channel definations
-# Currently a channel is always a physical on/off switch controlled by Raspberry Pi header GPI, 
-# but in the future e.g network controlled devices /energy storages could be controlled by channel logic.
-#
-# Channel attributes:
-# gpio - Raspberry PI header GPIO number for the switch
-# name - channel name, informative
-# loadW - maximum load in watts of the device (all lines/phases summed), used by load management, can be 0 if load management is not used
-# lines - one or 3 lines used by the controlled device, used by line level load management, use [1,2,3] if load management is not used
-# targets - Channel targets are in order i.e. first matching (condition is one of currently enabled conditions) is selected. 
-# 
-# Then upIf formula of matching target is evaluated; If formula value is True, then target is not yet reached and channel will be up (until formula value turns False).
-# If the of upIf value is False (target is reached), channel will be set down. Use sensor code in formulas. E.g. (sensor1<90) means that channel will be up until sensor1 gets value 90 or more.
-# If channel should be always on (when the condition is enabled) use: (True) in upIf formula (i.e. newer reached -> always on). Use (False) respectively channel should be down always (when the condition is enabled).
-
-
 [
-	{
-		"gpio": 16,
-		"name": "Tulistus L1-L3",
-		"loadW" :3000,
-		"lines": [
-			1,
-			2,
-			3
-		],
-		"sensor" : "sensor1",
-		"targets": [
-			{
-				"targetConditions": ["netsales"],
-				"upIf" : "sensor1<90",
-				"type" : "sensorbelow",
-				"value" : 90
-			},
-			{
-				"targetConditions": ["evening"],
-				"upIf" : "sensor1<50",
-				"type" : "sensorbelow",
-				"value" :50
-			},
-			{
-				"targetConditions": ["default"],
-				"upIf" : "sensor1<60",
-				"type" : "sensorbelow",
-				"value" :60
-			}
-		]
-	},
-	{
-		"gpio": 6,
-		"name": "Syöttö L1-L3",
-		"loadW" :3000,
-		"lines": [
-			1,
-			2,
-			3
-		],
-		"targets": [
-			{
-				"targetConditions": ["netsales"],
-				"upIf" : "sensor2<10",
-				"type" : "sensorbelow",
-				"value" :10
-			},
-			{
-				"targetConditions": ["default"],
-				"upIf" : "sensor2<10",
-				"type" : "sensorbelow",
-				"value" :10
-			}
-		]
-	},
-	{
-		"gpio": 5,
-		"name": "Lattial keittiö",
-		"loadW" :1500,
-		"lines": [
-			3
-		],
-		"targets": [
-			{
-				"targetConditions": ["netsales"],
-				"upIf" : "True",
-				"type" : "up"
-
-			},
-			{
-				"targetConditions": ["default"],
-				"upIf" : "True",
-				"type" : "up"
-			}
-		]
-	},
-	{
-		"gpio": 25,
-		"name": "Lattial olohuone",
-		"loadW" :2000,
-		"lines": [
-			2
-		],
-		"targets": [
-			{
-				"targetConditions": ["netsales"],
-				"upIf" : "True",
-				"type" : "up"
-			},
-			{
-				"targetConditions": ["default"],
-				"upIf" : "False",
-				"type" : "down"
-			}
-		]
-	},
-	{
-		"gpio": 24,
-		"name": "Lattial kylpyh",
-		"loadW" :1000,
-		"lines": [
-			1
-		],
-		"targets": [
-			{
-				"targetConditions": ["netsales"],
-				"upIf" : "True",
-				"type" : "up"
-			},
-			{
-				"targetConditions": ["default"],
-				"upIf" : "False",
-				"type" : "down"
-			}
-		]
-	},
-	{
-		"gpio": 23,
-		"name": "ei käytössä",
-		"loadW" :0,
-		"lines": [
-			3
-		]
-	},
-	{
-		"gpio": null,
-		"name": "ei käytössä",
-		"loadW" :0,
-		"lines": []
-	}
+    {
+        "gpio": 16,
+        "name": "Tulistus L1-L3",
+        "loadW": 3000,
+        "lines": [
+            1,
+            2,
+            3
+        ],
+        "sensor": "sensor1",
+        "targets": [
+            {
+                "targetConditions": [
+                    "netsales"
+                ],
+                "upIf": "sensor1<90",
+                "type": "sensorbelow",
+                "value": "90"
+            },
+            {
+                "targetConditions": [
+                    "evening"
+                ],
+                "upIf": "sensor1<50",
+                "type": "sensorbelow",
+                "value": "50"
+            },
+            {
+                "targetConditions": [
+                    "default"
+                ],
+                "upIf": "sensor1<62",
+                "type": "sensorbelow",
+                "value": "62"
+            }
+        ]
+    },
+    {
+        "gpio": 6,
+        "name": "Sy\u00f6tt\u00f6 L1-L3",
+        "loadW": 3000,
+        "lines": [
+            1,
+            2,
+            3
+        ],
+        "targets": [
+            {
+                "targetConditions": [
+                    "netsales"
+                ],
+                "upIf": "sensor1<11",
+                "type": "sensorbelow",
+                "value": "11"
+            },
+            {
+                "targetConditions": [
+                    "default"
+                ],
+                "upIf": "sensor1<10",
+                "type": "sensorbelow",
+                "value": "10"
+            }
+        ],
+        "sensor": "sensor1"
+    },
+    {
+        "gpio": 5,
+        "name": "Lattial keitti\u00f6",
+        "loadW": 1500,
+        "lines": [
+            3
+        ],
+        "targets": [
+            {
+                "targetConditions": [
+                    "netsales"
+                ],
+                "upIf": "True",
+                "type": "up"
+            },
+            {
+                "targetConditions": [
+                    "default"
+                ],
+                "upIf": "True",
+                "type": "up"
+            }
+        ]
+    },
+    {
+        "gpio": 25,
+        "name": "Lattial olohuone",
+        "loadW": 2000,
+        "lines": [
+            2
+        ],
+        "targets": [
+            {
+                "targetConditions": [
+                    "netsales"
+                ],
+                "upIf": "True",
+                "type": "up"
+            },
+            {
+                "targetConditions": [
+                    "default"
+                ],
+                "upIf": "False",
+                "type": "down"
+            }
+        ]
+    },
+    {
+        "gpio": 24,
+        "name": "Lattial kylpyh",
+        "loadW": 1000,
+        "lines": [
+            1
+        ],
+        "targets": [
+            {
+                "targetConditions": [
+                    "netsales"
+                ],
+                "upIf": "True",
+                "type": "up"
+            },
+            {
+                "targetConditions": [
+                    "default"
+                ],
+                "upIf": "False",
+                "type": "down"
+            }
+        ]
+    },
+    {
+        "gpio": 23,
+        "name": "ei k\u00e4yt\u00f6ss\u00e4",
+        "loadW": 0,
+        "lines": [
+            3
+        ],
+        "sensor": "sensor1",
+        "targets": [
+            {
+                "targetConditions": [
+                    "darkdaycoming"
+                ],
+                "upIf": "sensor1<34",
+                "type": "sensorbelow",
+                "value": "34"
+            }
+        ]
+    },
+    {
+        "gpio": null,
+        "name": "ei k\u00e4yt\u00f6ss\u00e4",
+        "loadW": 0,
+        "lines": [3]
+    }
 ]

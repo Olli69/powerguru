@@ -3,10 +3,22 @@
 <head>
     <title>Example formBuilder</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.4.0/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/css/bootstrap.min.css">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    
     <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.4.0/highlight.min.js"></script>
     <script src="https://formbuilder.online/assets/js/form-render.min.js"></script>
+    <style>
+        body {background-color: #11744a3b ;margin:1.6em; font-size:18px}
+        p {font-size: 1em;}
+        .fjs-input[type="number"] {max-width:200px;}
+      #form {
+        max-width: 800px;
+      }
+    </style>
 </head>
 <body>
     <script>
@@ -47,8 +59,11 @@
         //hljs.highlightBlock(code);
 
    
-    function logSubmit(event) {
-        console.log( `Form Submitted! Time stamp: ${event.timeStamp}`);
+    function saveForm(event) {
+        if (!confirm('Do you really really want to save the changes?')) {
+            return false;
+        }
+        //console.log( `Form Submitted! Time stamp: ${event.timeStamp}`);
         //console.log(JSON.stringify(formData));
         formDataSave = $('form').serializeArray();
          
@@ -74,7 +89,7 @@
             });
         event.preventDefault();
         }
-    document.getElementById("edit_form").addEventListener('submit', logSubmit);
+    document.getElementById("edit_form").addEventListener('submit', saveForm);
 
         
       });

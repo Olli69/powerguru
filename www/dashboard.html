@@ -80,7 +80,8 @@
                 if (field.target && field.up) {
                     targetText = `up if: ${field.target.upIf}`; 
                 }
-                $("#status").append(`<tr><td class="code">${field.code}</td><td>${field.name} </td><td><b>${isUpString(field.up)}</b></td><td> ${targetText}</td></tr>`);
+                link = `<a href="/channel/${field.idx}">${field.code}</a>`;
+                $("#status").append(`<tr><td class="code">${link}</td><td>${field.name} </td><td><b>${isUpString(field.up)}</b></td><td> ${targetText}</td></tr>`);
 
             });
             $("#status").append("</table>");

@@ -1,0 +1,32 @@
+# Channel definations
+# Currently a channel is always a physical on/off switch controlled by Raspberry Pi header GPI, 
+# but in the future e.g network controlled devices /energy storages could be controlled by channel logic.
+#
+# Channel attributes:
+# gpio - Raspberry PI header GPIO number for the switch
+# name - channel name, informative
+# loadW - maximum load in watts of the device (all lines/phases summed), used by load management, can be 0 if load management is not used
+# lines - one or 3 lines used by the controlled device, used by line level load management, use [1,2,3] if load management is not used
+# targets - Channel targets are in order i.e. first matching (condition is one of currently enabled conditions) is selected. 
+# 
+# Then upIf formula of matching target is evaluated; If formula value is True, then target is not yet reached and channel will be up (until formula value turns False).
+# If the of upIf value is False (target is reached), channel will be set down. Use sensor code in formulas. E.g. (sensor1<90) means that channel will be up until sensor1 gets value 90 or more.
+# If channel should be always on (when the condition is enabled) use: (True) in upIf formula (i.e. newer reached -> always on). Use (False) respectively channel should be down always (when the condition is enabled).
+
+
+# Condition definations
+# Condition formula "enabledIf" is checked in each recalculation for each condition defination listed here.
+# Available variables and current values of them you can see from the dashboard.
+#
+# Some variables you can use in "enabledIf" formulas:
+#	hhmm - current time, hours and minutes, used in time limiting conditions, e.g. night hours: (hhmm < '0700' or hhmm >'2200')
+#	mmdd - current date, months and days, used in calendar based conditions, e.g June, July, August: ('0601' <= mmdd  and  mmdd < '0901')
+#   purchasedEnergyPeriodNet - purchased energy in current period (now hour), e.g. own production exceeding purchase if: (purchasedEnergyPeriodNet<0) 
+#   solar24h - solar forecast (in kWh) for coming 24 h period (also for 6, 12 and 18 hours), e.g. formula for sunny day:  (solar24h>5) 
+#   energyPriceSpot - current spot price (c/kWh), e.g condition for very cheap price: (energyPriceSpot<1.0)
+#   spotPriceRank24h - rank of current spot price within 24 hours window (also for 6, 12 and 18 hours), e.g. 4 most expensive spot prices in 24h window: (spotPriceRank24h>20), e.g. cheapest hour within coming 6 hours: (spotPriceRank6h==1)
+#       
+# 24 h spot price window from current hour to 24 h in the future. If there is not yet that much price data available in the future, window starts from the past to newest hour, so that that window is 24 h is long
+# For example if current hour is 13 and utmost future hour is 00 next day, the 24 h price window is: 01 (today) -> 00 (tomorrow),
+#  but if full day-ahead price data for tomorrow is available,the 24 h price window is  13 (today, current hour) -> 12 (tomorrow)
+#  

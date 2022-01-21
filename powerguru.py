@@ -272,8 +272,8 @@ class PowerGuru:
         
         status = {"channels": [], "updates":[], "sensors":[], "variables":[], "current_conditions":None}
 
-        for channel in channels:
-            status["channels"].append({ "code" : channel.code, "name" : channel.name, "up":  channel.up, "target" : channel.target })
+        for idx,channel in enumerate(channels):
+            status["channels"].append({ "idx" : idx, "code" : channel.code, "name" : channel.name, "up":  channel.up, "target" : channel.target })
         
         for variable_code,variable in powerGuru.get_variables():
             status["variables"].append({ "code" : variable_code, "value" : variable["value"], "ts":  variable["ts"], "type" : variable["type"] })
@@ -930,49 +930,80 @@ def process_sensor_data(temperature_data):
 #    return 42
 def create_channel_form(channelIdx):
 
-    channel = channels[channelIdx] #vanha tapa vielä rinnalla
     channel_entry = channels_list[channelIdx]
-
-
-    print("channel.sensor:", channel_entry["sensor"])
+    #print("channel.sensor:", channel_entry["sensor"])
     form_data = []
     form_data.append({ "type": "hidden", "name": "idx", "access": False,"value": channelIdx})
-    form_data.append({ "type": "header","subtype": "h2", "label": "Channel ch1", "access": False})
-    form_data.append({"type": "text","required": False, "label": "code", "className": "form-control", "name": "id","access": False,  "subtype": "text","value": "ch{}".format(channelIdx+1), "disabled": True})
+    form_data.append({ "type": "header","subtype": "h1", "label": "Channel "+str(channelIdx+1), "access": False})
+  #  form_data.append({"type": "text","required": False, "label": "code", "className": "form-control", "name": "id","access": False,  "subtype": "text","value": "ch{}".format(channelIdx+1), "disabled": True})
     form_data.append({"type": "text","required": True, "label": "name", "className": "form-control", "name": "name","access": True,  "subtype": "text","value":channel_entry["name"]})
     form_data.append({"type": "number","required": True, "label": "Load", "className": "form-control", "name": "loadW","access": True,  "description": "Max load in watts (W)","min": 0, "max": 10000,"step": 0, "value": channel_entry["loadW"]})
     form_data.append({"type": "number","required": True, "label": "GPIO", "className": "form-control", "name": "gpio","access": False,  "description": "Compoter GPIO","min": 0, "max": 37,"step": 1, "value" : channel_entry["gpio"],"disabled": True})
     
-    if len(channel_entry["lines"])==3:
-        lines = 0
+    if "lines" in channel_entry:
+        if len(channel_entry["lines"])==3:
+            lines = 0
+        else:
+            print("DEBUG:", channel_entry["lines"])
+            lines = channel_entry["lines"][0]
     else:
-        lines = channel_entry["lines"][0]["l"]
-    form_data.append({"type": "radio-group", "required": True, "label": "Lines","inline": False, "name": "lines","access": False,"other": False, "values": [ {"label": "3-phase","value": "3phase","selected": (lines==0)} , { "label": "L1, 1-phase","value": "1","selected": (lines==1)}  , { "label": "L2, 1-phase","value": "2","selected": (lines==2)} , { "label": "L3, 1-phase","value": "3","selected": (lines==3)}]})
+        lines = 0    
+
+    #form_data.append({"type": "radio-group", "required": True, "label": "Lines","inline": False, "name": "lines","access": False,"other": False, "values": [ {"label": "3-phase","value": "3phase","selected": (lines==0)} , { "label": "L1, 1-phase","value": "1","selected": (lines==1)}  , { "label": "L2, 1-phase","value": "2","selected": (lines==2)} , { "label": "L3, 1-phase","value": "3","selected": (lines==3)}]})
+
+    form_data.append({"type": "select", "required": True, "label": "Lines","className": "form-control", "multiple": False, "name": "lines","access": False,"other": False, "values": [ {"label": "3-phase","value": "3phase","selected": (lines==0)} , { "label": "L1, 1-phase","value": "1","selected": (lines==1)}  , { "label": "L2, 1-phase","value": "2","selected": (lines==2)} , { "label": "L3, 1-phase","value": "3","selected": (lines==3)}]})
+
 
     sensor_values = []
     for sensor in sensorData.sensors:
-        selected = (sensor["code"] == channel_entry["sensor"])
+        selected = (sensor["code"] == channel_entry.get("sensor",None))
         sensor_values.append({ "value" : sensor["code"], "label" :  "{} ({})".format(sensor["name"],sensor["code"]), "selected": selected })
     
     form_data.append({"type": "select", "required": True, "label": "Sensor",
       "className": "form-control","name": "sensor","access": False, "multiple": False,
       "values": sensor_values})
 
- 
+    form_data.append({ "type": "header","subtype": "h1", "label": "Targets", "access": False})
+
     form_data.append({ "type": "paragraph", "subtype": "p", "label": "Use this target if no exception below matches. Condition targets are in order and the first (1,2...) matching target will be target value for the channel. If there is no match , default the value is used.", "access": False })
  
-    for idx,target in enumerate(channel_entry["targets"]):
-        new_target_fields = ui_add_target_section(idx, target)
-        form_data.extend(new_target_fields)
-    
+    target_count = 0
+    if "targets" in channel_entry:
+        for idx,target in enumerate(channel_entry["targets"]):
+            new_target_fields = ui_add_target_section(idx, target)
+            form_data.extend(new_target_fields)
+            target_count += 0
+
+        
     # add one empty target to the bottom 
-    new_target_fields = ui_add_target_section(len(channel_entry["targets"]), {"targetConditions": [], "type" : "down", "value": None})
+    new_target_fields = ui_add_target_section(target_count, {"targetConditions": [], "type" : "down", "value": None})
     form_data.extend(new_target_fields)
     
     form_data.append({"type": "button", "subtype": "submit", "label": "Save", "className": "btn-default btn", "name": "save","access": False, "style": "default"})
  
     return form_data
 
+
+def create_conditions_form(): 
+    form_data = []
+    form_data.append({ "type": "header","subtype": "h1", "label": "Conditions ", "access": False})
+    idx = 0
+    for condition_key, condition in conditions.items(): 
+        #if idx > 2:
+        #    break
+        #print("condition_key, condition:", condition_key, condition)
+        form_data.append({"type": "text","required": True, "label": "code", "className": "form-control", "name": "code","access": True,  "subtype": "text","value":condition_key})
+        form_data.append({"type": "text","required": True, "label": "description", "className": "form-control", "name": "desc","access": True,  "subtype": "text","value":condition["desc"]}) 
+        enabledIf = condition["enabledIf"]#.replace("'","&#39;")
+        print(enabledIf)
+        #enabledIf = "AA"
+        
+        form_data.append({"type": "text","required": True, "label": "enabled if (formula)", "className": "form-control", "name": "enabledIf","access": True,  "subtype": "text","value":enabledIf })
+        idx += 1
+
+    form_data.append({"type": "button", "subtype": "submit", "label": "Save", "className": "btn-default btn", "name": "save","access": False, "style": "default"})
+    
+    return form_data
 
 def ui_add_target_section(index, target):
     fields = []
@@ -985,59 +1016,38 @@ def ui_add_target_section(index, target):
         condition_values.append({ "value" : "condition_{}".format(condition_key), "label" :  "{} ({})".format(condition["desc"],condition_key), "selected": condition_key in target["targetConditions"] })
     
     fields.append({"type": "paragraph", "subtype": "p", "label": "<hr>{}. conditional target value".format(index+1), "access": False })
-    fields.append({"type": "radio-group", "required": False, "label": "Target type","inline": False, "name": "targetType_{}".format(index),"access": False,"other": False, "values": [ {"label": "up if sensor below target","value": "sensorbelow","selected": target["type"] == "sensorbelow"} , { "label": "always up","value": "up","selected": (target["type"] == "up")}  , { "label": "always down","value": "down","selected": (target["type"] == "down")} ]})
     fields.append({"type": "select","required": False,"description": "One or more conditions for this target","className": "form-control","name": "targetConditions_{}".format(index),"access": False,"multiple": True,"values": condition_values})
-    fields.append({"type": "number","required": False, "label": "target value", "className": "form-control", "name": "target_{}".format(index),"access": False,  "description": "Target value for selected conditions","min": 0, "max": 100,"step": 1, "value": target["value"]})
+    fields.append({"type": "radio-group", "required": False, "label": "Target type","inline": False, "name": "targetType_{}".format(index),"access": False,"other": False, "values": [ {"label": "up if sensor below target","value": "sensorbelow","selected": target["type"] == "sensorbelow"} , { "label": "always up","value": "up","selected": (target["type"] == "up")}  , { "label": "always down","value": "down","selected": (target["type"] == "down")} ]})
+    fields.append({"type": "number","required": False, "label": "target value", "className": "form-control", "name": "target_{}".format(index),"access": False,  "description": "Target value for selected conditions","min": 0, "max": 100,"step": 1, "value": target.get("value",None)})
     
     return fields # thislist.extend(tropical)
 
-async def serve_editor(request):
+async def serve_channel_editor(request):
     # https://bpmn.io/blog/posts/2021-form-js-visual-form-editing-and-embedding.html
 
     # testing channel editot
     #todo authetication
     # 
-    channelIdx = 0 # 0-indexed
-    channel = channels[channelIdx]
-
-    """
-
-    https://formbuilder.online/docs/formBuilder/actions/save/
-
-    Jos mennään tällä targetlistalla, niin targettien järjestystä ei pysty muuttamaan ( vai pystyiskö tekemään jotain nappeja?)
-    Mikä riittäisi targettien muuttamiseen - jos olisi vaan nappi ,josta saa ylös (alas) - siinä vaan mahdollisesti joutuisi loadaamaan koko formin, mikä ei olisi käytön kannalta hyvä.
-    Components on kyllä lista, jonka voisi varmaa sortata uudestaa, mutta pitääkö ajaa sitten createForm uusiksi.
-    Tällöin todennäköisesti päivitetty data pitäisi ottaa takaisin talteen väliaikasesti tai sitten tehdä aina lopullinen save.
-    Data voisi ottaa joka tapauksessa samaan tietorakenteeseen kuin päivitetään jqueryllä.
-
-    Tai sitten meillä olisi prioriteettikenttä. Ongelmana, että vaikea hahmottaa ja vie tilaa.
-
-    Jos ei pystyisi muuttamaan, niin voi tietysti miettiä riittääkö jos conditionit olisivat järjestysessä, joka olis globaalis eli esim. netsales olsii poikkeus - tässä tapauksessa muuten sama logiika kuin nyt.
-    Jos globaali järjestys riittävä, niin hyvänä puolena, että channel-näyttö pysyisi selkeämpänä.
-
-    Logiikan kannalta toinen vaihtoehto olisi, että katsottaisiin aina esim. targettien maksimi niistä jotka täyttää ehdot eikä välitetä järjestyksestä. 
-    Ongelma on että poikkeusksia alaspäin ei voisi helposti tehdä - pärjätäänkö ilman vai voisiko kiertää?
-
-Tehdään näin:
-Testaa vielä, että save toimii ja katso olisiko Formbuilder kuitenkin tähän parempi. Siinä toimisi multiselect.
-Channel näytössä olisi perustiedot suunnilleen kuten nyt ja kiinteä, esim. 6  rivistö,
-jossa multiselect condition ja sensorin arvo
-
-    """
-  
-    with open("www/editor3.html", 'r', encoding='utf8') as f:
-       # print("channels:", json.dumps(channels_list))
+    idx = int(request.match_info.get('idx', "-1"))
+    channelIdx = idx # int(request.match_info.get('idx', "-1")) # int(request.rel_url.query['idx']) # 0-indexed
+    with open("www/channel.html", 'r', encoding='utf8') as f:
         text_out = f.read()
 
-
     formData_str = json.dumps(create_channel_form(channelIdx), indent=None, separators=(",",":"))
-    #print(formData_str)
     text_out = text_out.replace("#formData#", formData_str)
-       
-       # print(text_out)
     return Response(text=text_out, content_type='text/html');
-    #initialJson
-    #return web.FileResponse('www/editor.html')
+  
+async def serve_conditions_editor(request):
+
+    #todo authetication
+    with open("www/conditions.html", 'r', encoding='utf8') as f:
+        text_out = f.read()
+
+    formData_str = json.dumps(create_conditions_form(), indent=None, separators=(",",":"))
+    print("formData_str:", formData_str)
+    text_out = text_out.replace("#formData#", formData_str)
+    return Response(text=text_out, content_type='text/html');
+  
 
 def list_objects_to_dict(list_in, key_name = 'name', value_name = 'value',end_regex = '_\d+$'):
     out_dict = {}
@@ -1080,7 +1090,7 @@ def list_objects_to_dict(list_in, key_name = 'name', value_name = 'value',end_re
 
 async def save_editor(request):
     obj = await request.json()
-    print("save_editor")
+    #print("save_editor")
     pp.pprint(obj)
     if obj["type"] ==  "channel":
         channel_input = list_objects_to_dict(obj["data"])
@@ -1090,26 +1100,20 @@ async def save_editor(request):
         idx = int(channel_input["idx"])
         channel = channels_list[idx]
         channel["name"] = channel_input["name"]
-        channel["loadW"] = channel_input["loadW"]
+        channel["loadW"] = int(channel_input["loadW"])
         line_mapping = {"3phase":[1,2,3],"1": [1],"2": [2],"3": [3]}
         channel["lines"] = line_mapping[channel_input["lines"]]
         channel["sensor"] = channel_input["sensor"]
-        
 
-        #channel["defaultTarget"] = channel_input["defaultTarget"]
-        
-
-        channel["targets_new"] = []
+        targets_new = []
         
         target_range = range(min(len(channel_input["target"]),len(channel_input["targetConditions"])))
-        print("target_range",target_range)
         for i in target_range:
-            print("i:", i)
             targetIdx = str(i)
             if  not isinstance(channel_input["targetConditions"][targetIdx], list):
                 channel_input["targetConditions"][targetIdx] = [channel_input["targetConditions"][targetIdx]]    
             
-            if targetIdx in channel_input["targetConditions"]:  # tähän vielä type
+            if targetIdx in channel_input["targetConditions"]:  # tähän vielä type?
                 targetType = channel_input["targetType"][targetIdx]
                 targetValue = None 
                 if targetType== "sensorbelow":
@@ -1125,32 +1129,32 @@ async def save_editor(request):
 
                 conditions_cleaned = []
                 for condition in channel_input["targetConditions"][targetIdx]:
-                    print("append:", condition.replace("condition_",""))
                     conditions_cleaned.append(condition.replace("condition_","")  )
 
-                channel["targets_new"].append({"targetConditions" : conditions_cleaned,"upIf" : upIf, "type" : targetType, "value": targetValue})
+                targets_new.append({"targetConditions" : conditions_cleaned,"upIf" : upIf, "type" : targetType, "value": targetValue})
 
-        #channel["targets_new"].append({"targetConditions" : ["default"],"upIf" : "{}<{}".format(channel_input["sensor"],channel_input["defaultTarget"])})
+        channel["targets"] =targets_new 
 
-        pp.pprint(channel_input)
-        print("=========>")
-        pp.pprint(channel)
+
+        #pp.pprint(channel_input)
+        #print("=========>")
+        #pp.pprint(channel)
 
     
-        """
-        Tässä tut ensiksi mitä on tulossa.
-        Sitten pura (utility esim. multiselektin purkuun arrayksi
-        Sen jälkeen päivitä alkuperäinen json (siitä varmaa pitäisi ottaa myös pohjat formiin)
-        Sitten ohjaa formiin takaisin tai sitten adminin perusnäyttöön - jossa mahdollisuus startata (eli tehdä exit)
+        # replace channel enty
+        for n, i in enumerate(channels_list):
+            if n == idx:
+                channels_list[n] = channel
+     
 
-        list to dict , variable names
-        mapping "1": [1] , 3phase [1,2,3]
-        form_array to ...
-        Katso myös autentoikointi
-        """
+        pp.pprint(channels_list)
+        #nyt save, johonkin reload/restart
+        save_data_json(channels_list,s.channels_filename)
+      
 
 
-async def status(request):
+
+async def serve_status(request):
     global powerGuru
     async with sse_response(request) as resp:
         while True:
@@ -1165,11 +1169,20 @@ async def status(request):
     return resp
 
 
-async def index(request):
+async def serve_dashboard(request):
     # see also: http://demos.aiohttp.org/en/latest/tutorial.html#static-files
-    with open("www/index.html", 'r', encoding='utf8') as f:
+    with open("www/dashboard.html", 'r', encoding='utf8') as f:
               #  body= bytes(f.read(), "utf-8")
         return Response(text=f.read(), content_type='text/html');
+
+async def serve_admin(request):
+    # see also: http://demos.aiohttp.org/en/latest/tutorial.html#static-files
+    with open("www/dashboard.html", 'r', encoding='utf8') as f:
+              #  body= bytes(f.read(), "utf-8")
+        return Response(text=f.read(), content_type='text/html');
+
+
+
 
 #async def add_user(request: web.Request) -> web.Response:
 async def process_telegraf_post(request):
@@ -1230,13 +1243,20 @@ def main(argv):
 
     #aiohttp
     app = web.Application()
-    app.router.add_route('GET', '/index.html', index)
-    app.router.add_route('GET', '/status', status)
+    app.router.add_route('GET', '/dashboard', serve_dashboard)
+    app.router.add_route('GET', '/status', serve_status)
     app.router.add_route('POST', '/telegraf', process_telegraf_post)
-    app.router.add_route("GET", '/editor', serve_editor)
-    app.router.add_route("POST", '/editor', save_editor)
-
+    app.router.add_route('GET', '/admin', serve_admin)
    
+
+   # app.router.add_route('GET', '/(channels\/\dd*|conditions)', serve_editor) 
+
+    app.router.add_route('GET', '/channel/{idx}', serve_channel_editor) 
+    app.router.add_route('GET', '/conditions', serve_conditions_editor) 
+    
+    app.router.add_route("POST", '/editor', save_editor)
+    #channel\/\d*
+
     web.run_app(app, host='0.0.0.0', port=8080)
 
     #TODO: this could be main loop where recalculation are started after new data arrived from Telegraf
