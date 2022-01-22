@@ -972,38 +972,59 @@ def create_channel_form(channelIdx):
         for idx,target in enumerate(channel_entry["targets"]):
             new_target_fields = ui_add_target_section(idx, target)
             form_data.extend(new_target_fields)
-            target_count += 0
+            target_count += 1
 
         
     # add one empty target to the bottom 
     new_target_fields = ui_add_target_section(target_count, {"targetConditions": [], "type" : "down", "value": None})
     form_data.extend(new_target_fields)
-    
     form_data.append({"type": "button", "subtype": "submit", "label": "Save", "className": "btn-default btn", "name": "save","access": False, "style": "default"})
- 
     return form_data
 
 
 def create_conditions_form(): 
+    global powerGuru
     form_data = []
     form_data.append({ "type": "header","subtype": "h1", "label": "Conditions ", "access": False})
+
+    form_data.append({ "type": "paragraph", "subtype": "p", "label": "Condition code must be unique. You can add one condition at time to the end. To delete a condition enter \"delete\" in the formula column. Do not delete conditions used in channel targets.", "access": False })
+ 
+    variableStr = ""
+    for variable_code,variable in powerGuru.get_variables():
+        if variable["type"] == "str":
+            variableStr += "<li>{} ('{}')</li>".format(variable_code,variable["value"])
+        else:
+            variableStr += "<li>{} ({})</li>".format(variable_code,variable["value"])
+
+    form_data.append({ "type": "paragraph", "subtype": "p", "label": "Currently available variables (and current value):<ul>{}</ul>".format(variableStr), "access": False })
+  
     idx = 0
     for condition_key, condition in conditions.items(): 
-        #if idx > 2:
-        #    break
-        #print("condition_key, condition:", condition_key, condition)
-        form_data.append({"type": "text","required": True, "label": "code", "className": "form-control", "name": "code","access": True,  "subtype": "text","value":condition_key})
-        form_data.append({"type": "text","required": True, "label": "description", "className": "form-control", "name": "desc","access": True,  "subtype": "text","value":condition["desc"]}) 
-        enabledIf = condition["enabledIf"]#.replace("'","&#39;")
-        print(enabledIf)
-        #enabledIf = "AA"
-        
-        form_data.append({"type": "text","required": True, "label": "enabled if (formula)", "className": "form-control", "name": "enabledIf","access": True,  "subtype": "text","value":enabledIf })
+        new_fields = ui_add_condition_section(idx, condition,condition_key,True)
+        form_data.extend(new_fields)
         idx += 1
+    # empty for adding
+    new_fields = ui_add_condition_section(idx, {"desc":"Enter new condition here","enabledIf": ""},"",False)
+    form_data.extend(new_fields)
 
     form_data.append({"type": "button", "subtype": "submit", "label": "Save", "className": "btn-default btn", "name": "save","access": False, "style": "default"})
-    
     return form_data
+
+
+def ui_add_condition_section(idx, condition, condition_key,existing_entry):
+    fields = []
+    enabledIf = condition["enabledIf"]
+    if existing_entry:
+        code_class = "readOnly"
+    else:
+        code_class = ""
+
+    fields.append({ "type": "paragraph", "className": "col-lg-12" ,"subtype": "p", "label": "<br><hr>Condition {}".format(idx+1), "access": False })
+    fields.append({"type": "text","required": existing_entry, "label": "code", "className": "form-control code   col-lg-3 "+code_class, "name": "code_{}".format(idx),"access": True,  "subtype": "text","value":condition_key})
+    fields.append({"type": "text","required": existing_entry, "label": "enabled if (formula)", "className": "form-control formula   col-lg-9", "name": "enabledIf_{}".format(idx),"access": True,  "subtype": "text","value":enabledIf })
+    fields.append({"type": "text","required": existing_entry, "label": "description", "className": "form-control  col-lg-12", "name" : "desc_{}".format(idx),"access": True,  "subtype": "text","value":condition["desc"]}) 
+    return fields
+
 
 def ui_add_target_section(index, target):
     fields = []
@@ -1015,9 +1036,17 @@ def ui_add_target_section(index, target):
         #if condition_key in target["targetConditions"]
         condition_values.append({ "value" : "condition_{}".format(condition_key), "label" :  "{} ({})".format(condition["desc"],condition_key), "selected": condition_key in target["targetConditions"] })
     
+    print("ui_add_target_section:",target)
+    
+    sensorbelowSelected = (target["type"] == "sensorbelow")
+    upSelected = (target["type"] == "up")
+    downSelected = (target["type"] == "down")
+
+    print("selected:",sensorbelowSelected, upSelected,downSelected)
+
     fields.append({"type": "paragraph", "subtype": "p", "label": "<hr>{}. conditional target value".format(index+1), "access": False })
     fields.append({"type": "select","required": False,"description": "One or more conditions for this target","className": "form-control","name": "targetConditions_{}".format(index),"access": False,"multiple": True,"values": condition_values})
-    fields.append({"type": "radio-group", "required": False, "label": "Target type","inline": False, "name": "targetType_{}".format(index),"access": False,"other": False, "values": [ {"label": "up if sensor below target","value": "sensorbelow","selected": target["type"] == "sensorbelow"} , { "label": "always up","value": "up","selected": (target["type"] == "up")}  , { "label": "always down","value": "down","selected": (target["type"] == "down")} ]})
+    fields.append({"type": "radio-group", "required": False, "label": "Target type","inline": False, "name": "targetType_{}".format(index),"access": False,"other": False, "values": [ {"label": "up if sensor below target","value": "sensorbelow","selected":sensorbelowSelected} , { "label": "always up","value": "up","selected": upSelected}  , { "label": "always down","value": "down","selected": downSelected} ]})
     fields.append({"type": "number","required": False, "label": "target value", "className": "form-control", "name": "target_{}".format(index),"access": False,  "description": "Target value for selected conditions","min": 0, "max": 100,"step": 1, "value": target.get("value",None)})
     
     return fields # thislist.extend(tropical)
@@ -1038,7 +1067,6 @@ async def serve_channel_editor(request):
     return Response(text=text_out, content_type='text/html');
   
 async def serve_conditions_editor(request):
-
     #todo authetication
     with open("www/conditions.html", 'r', encoding='utf8') as f:
         text_out = f.read()
@@ -1092,7 +1120,36 @@ async def save_editor(request):
     obj = await request.json()
     #print("save_editor")
     pp.pprint(obj)
-    if obj["type"] ==  "channel":
+    if obj["type"] ==  "conditions":
+        channel_input = list_objects_to_dict(obj["data"])
+        print("channel_input")
+        pp.pprint(channel_input)
+        
+
+        # get max idx to handle
+        max_idx = -1
+        for key,enabledIf in channel_input["enabledIf"].items():
+            if enabledIf:
+                max_idx = max(max_idx,int(key))
+        for key,code in channel_input["code"].items():
+            if code:
+                max_idx = max(max_idx,int(key))
+        #for key,desc in channel_input["desc"].items():
+        #    max_idx = max(max_idx,int(key))
+
+        print("max_idx:",max_idx)
+        conditions_new = {}
+        for idx in range(max_idx+1):
+            new_condition = {}
+            new_condition["enabledIf"] = channel_input["enabledIf"][str(idx)]
+            new_condition["desc"] = channel_input["desc"][str(idx)]
+            if new_condition["enabledIf"] != "delete":
+                conditions_new[channel_input["code"][str(idx)]] = new_condition
+        pp.pprint(conditions_new)
+        print("saving...")
+        save_data_json(conditions_new,s.conditions_filename)
+
+    elif obj["type"] ==  "channel":
         channel_input = list_objects_to_dict(obj["data"])
         
         print("channel_input")
@@ -1135,7 +1192,6 @@ async def save_editor(request):
 
         channel["targets"] =targets_new 
 
-
         #pp.pprint(channel_input)
         #print("=========>")
         #pp.pprint(channel)
@@ -1146,12 +1202,9 @@ async def save_editor(request):
             if n == idx:
                 channels_list[n] = channel
      
-
         pp.pprint(channels_list)
         #nyt save, johonkin reload/restart
         save_data_json(channels_list,s.channels_filename)
-      
-
 
 
 async def serve_status(request):
@@ -1180,7 +1233,6 @@ async def serve_admin(request):
     with open("www/dashboard.html", 'r', encoding='utf8') as f:
               #  body= bytes(f.read(), "utf-8")
         return Response(text=f.read(), content_type='text/html');
-
 
 
 

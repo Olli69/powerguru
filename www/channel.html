@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Example formBuilder</title>
+    <title>Powerguru - Edit channel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.4.0/styles/default.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/css/bootstrap.min.css">
 
@@ -14,6 +14,7 @@
     <style>
         body {background-color: #11744a3b ;margin:1.6em; font-size:18px}
         p {font-size: 1em;}
+        .btn {background-color: white;}
         .fjs-input[type="number"] {max-width:200px;}
       #form {
         max-width: 800px;
@@ -25,56 +26,27 @@
         jQuery($ => {
         const escapeEl = document.createElement("textarea");
         const code = document.getElementById("edit_form");
-        const formData = '#formData#';
+        const formData = #formData#;
         const addLineBreaks = html => html.replace(new RegExp("><", "g"), ">\n<");
 
 
-/*
-        var options = {
-      onSave: function(evt, formData) {
-          toggleEdit();
-          $('.render-wrap').formRender({formData});
-          window.sessionStorage.setItem('formData', JSON.stringify(formData));
-        },
-    };
-*/
-  var formRenderOptions = {
-  formData: formData,
-  onSave: function(evt, formData) { alert("moi");}
-}
- 
-      
         // Grab edit_form and escape it
         const $edit_form = $("<div/>");
-        $edit_form.formRender({ formData });
-       // $edit_form.formRender( formRenderOptions );
-       // alert($edit_form.formRender("html"));
-      
-        // set < code > innerText with escaped edit_form
-        //code.innerText = addLineBreaks($edit_form.formRender("html"));
-            
-        //code.innerText = $edit_form.formRender("html");
+        
+        var formRender =  $edit_form.formRender({ formData });
+        
+
         code.innerHTML = $edit_form.formRender( "html" );
-      
-        //hljs.highlightBlock(code);
 
    
     function saveForm(event) {
         if (!confirm('Do you really really want to save the changes?')) {
             return false;
         }
-        //console.log( `Form Submitted! Time stamp: ${event.timeStamp}`);
-        //console.log(JSON.stringify(formData));
         formDataSave = $('form').serializeArray();
-         
-        console.log(formDataSave);
-        //console.log($('form').serialize());
-        /*
-        $.post("/editor", formDataSave, function (data) {
-                    alert("ok");
-                });
 
-*/
+        console.log(formDataSave);
+   
                 $.ajax({
                 type: "POST",
                 url: "/editor",
@@ -89,13 +61,15 @@
             });
         event.preventDefault();
         }
-    document.getElementById("edit_form").addEventListener('submit', saveForm);
 
+      
+
+    document.getElementById("edit_form").addEventListener('submit', saveForm);
         
       });
       </script>
 <form id="edit_form"></form>
- 
+
 </body>
 </html>
 

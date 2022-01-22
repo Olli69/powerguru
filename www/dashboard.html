@@ -73,6 +73,8 @@
             */
            
             $("#status").append("</table>");
+            $("#status").append("<a href=\"/conditions\">Conditions</a><br>");
+        
             $("#status").append("<h2>Channels</h2><table>");
             $("#status").append("<tr><td></td><td>channel</td><td></td><td>state info</td></tr>");
             $.each(result.channels, function (i, field) {

@@ -14,6 +14,9 @@
     <style>
         body {background-color: #11744a3b ;margin:1.6em; font-size:18px}
         p {font-size: 1em;}
+        .code {max-width: 250px;}
+        .formula {max-width: 70%;}
+        .btn {background-color: white;}
         .fjs-input[type="number"] {max-width:200px;}
       #form {
         max-width: 800px;
@@ -39,6 +42,8 @@
         $edit_form.formRender({ formData });
 
         code.innerHTML = $edit_form.formRender( "html" );
+        $('.readOnly').attr('readonly', true);
+       
       
         //hljs.highlightBlock(code);
 
@@ -55,7 +60,7 @@
                 type: "POST",
                 url: "/editor",
                 // The key needs to match your method's input parameter (case-sensitive).
-                data: JSON.stringify({  type : 'channel', data: formDataSave }),
+                data: JSON.stringify({  type : 'conditions', data: formDataSave }),
                 contentType: "application/json; charset=utf-8",
                 dataType: "json",
                 success: function(data){alert(data);},
