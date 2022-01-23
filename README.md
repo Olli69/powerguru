@@ -1,3 +1,5 @@
+[🇫🇮Taustaa ohjelmistosta suomeksi / Background information in Finnish](doc/taustaa_fi.md)
+
 ## Idea
 TO BE UPDATED...
 Powerguru manages electric loads, for example water heaters or other conrollable devices/energy storages. It can heat up the boilers when then electricity is cheap, for example when you have excess solar power or nightime. It can also optimize water heating using solar energy forecast (http://www.bcdcenergia.fi/ for forecast in Finland). Current version can read RS485/Modbus enabled electric meters and DS18B20 temperatare sensors. It can also fetch Nordpool day-ahead spot prices. 

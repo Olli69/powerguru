@@ -28,6 +28,13 @@ import asyncio
 from aiohttp import web
 from aiohttp.web import Response
 from aiohttp_sse import sse_response
+
+from aiohttp_session import get_session, SimpleCookieStorage, session_middleware  #pip3 install aiohttp_session[secure]
+from aiohttp_session.cookie_storage import EncryptedCookieStorage
+from aiohttp_basicauth_middleware import basic_auth_middleware
+import hashlib
+
+
 from datetime import datetime
 
 import socket
@@ -926,8 +933,7 @@ def process_sensor_data(temperature_data):
 
 
 #aiohttp
-#async def now_new_data():
-#    return 42
+
 def create_channel_form(channelIdx):
 
     channel_entry = channels_list[channelIdx]
@@ -1223,6 +1229,8 @@ async def serve_status(request):
 
 
 async def serve_dashboard(request):
+    session = await get_session(request)
+    session['last_visit'] = time.time()
     # see also: http://demos.aiohttp.org/en/latest/tutorial.html#static-files
     with open("www/dashboard.html", 'r', encoding='utf8') as f:
               #  body= bytes(f.read(), "utf-8")
@@ -1294,8 +1302,13 @@ def main(argv):
     run_telegraf_once_thread.start()
 
     #aiohttp
-    app = web.Application()
-    app.router.add_route('GET', '/dashboard', serve_dashboard)
+    #app = web.Application()
+    FernetKey = '6ip63k7p0jh5rR/2Bs4AdSM35FMQWovGwSz0tydU6ro='
+    #middleware = session_middleware(SimpleCookieStorage())
+    middleware = session_middleware(EncryptedCookieStorage(FernetKey))
+
+    app = web.Application(middlewares=[middleware])
+    app.router.add_route('GET', '/', serve_dashboard)
     app.router.add_route('GET', '/status', serve_status)
     app.router.add_route('POST', '/telegraf', process_telegraf_post)
     app.router.add_route('GET', '/admin', serve_admin)
@@ -1307,6 +1320,29 @@ def main(argv):
     app.router.add_route('GET', '/conditions', serve_conditions_editor) 
     
     app.router.add_route("POST", '/editor', save_editor)
+
+    
+
+    # https://github.com/bugov/aiohttp-basicauth-middleware
+    """
+    app.middlewares.append(
+    basic_auth_middleware(
+        ('/conditions',),
+        {'user': 'password'},
+    )
+    )
+    """
+
+    app.middlewares.append(
+    basic_auth_middleware(
+        ('/conditions','/channel/','/editor/'),
+        {'powerguru': 'bceeffe128eb5f0f76a7c9f7c3d93fededa859f0f1689e00ff7bff4b93c7ed97206d2844a2e3327fc14edc9e36ce4601a5409bb1a34bda332715acb24b5cbc5e'},
+        lambda x: hashlib.sha512(bytes(x, encoding='utf-8')).hexdigest(),
+    )
+    )
+    #generate digest manually: echo -n 'my_new_password'|openssl dgst -sha512
+
+
     #channel\/\d*
 
     web.run_app(app, host='0.0.0.0', port=8080)
