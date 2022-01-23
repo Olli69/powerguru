@@ -44,6 +44,7 @@ Ohjelmisto kerää tietoa tarpeen mukaan valituista tietolähteistä. Tietoläht
 - aurinkovoimalan lähiajan tuotantoa ennustava energiasääennuste
 - vesivaraajien lämpötila-anturit
 - sähköauton tai akuston varaustieto (suunnitteilla)
+![Data flow diagram](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagram.drawio.png?raw=true)
 
 Sähkön markkinahinnat päivitetään eurooppalaisten verkko-operaattoreiden ylläpitämästä ENTSO-E -palvelusta https://www.entsoe.eu/.
 
@@ -62,7 +63,7 @@ Raspberry Pi (Raspi) on yleisesti luotettava pieni tietokone, josta on osaamista
 Powerguru on suunniteltu niin, että perusasennuksessa muistikortille kirjoitetaan harvoin, jolloin riski sen rikkoutuminen kulumisen vuoksi minimoituu. Tämä takia analytiikkatiedot tallennetaan pilvipalveluun. Mikäli kuitenkin tallentaa tiedot pilvipalvelun sijasta omalla Raspberry Pi palvelimelle, suosittelemme että siinä käytetään massamuistina ulkoista USB-massamuistia. Tämä asennus ei kuulu ns. perusasennukseen, vaan siinä tarvitaan jonkin verran Linux-käyttöjärjestelmäosaamista.
 
 ### Telegraf
-Tiejen keräämiseen ja [Telegraf](https://github.com/influxdata/telegraf)
+Tietojen keräämiseen ja [Telegraf](https://github.com/influxdata/telegraf)
 
 ### Tiedon analysointi - InfluxDB ja Grafana 
 Järjestelmän keräämät tiedot voidaan tallentaa analysointia varten. Helpoimmin tietojen keruu ja analysointi onnistuu pilvipohjaisessa palvelussa, mutta tiedot on myös mahdollista kerätä omalla palvelimelle.
