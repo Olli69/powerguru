@@ -1,4 +1,4 @@
-[🇫🇮Taustaa ohjelmistosta suomeksi / Background information in Finnish](blob/main/docs/taustaa_fi.md)
+[🇫🇮Taustaa ohjelmistosta suomeksi / Background information in Finnish](docs/taustaa_fi.md)
 
 ## Idea
 TO BE UPDATED...
