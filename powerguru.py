@@ -166,6 +166,7 @@ class PowerGuru:
         self.nettingPeriodMinutes = self.get_setting("nettingPeriodMinutes")
         self.dayaheadWindowBlocks = self.get_setting("dayaheadWindowBlocks") 
         self.solarForecastBlocks = self.get_setting("solarForecastBlocks") 
+        self.localChannelsEnabled = self.get_setting("localChannelsEnabled")
         
 
         self.lines = [ (1, 0),(2, 0),(3, 0)]
@@ -387,35 +388,39 @@ class PowerGuru:
         self.set_variable("purchasedEnergyPeriodNet" , round(purchasedEnergyPeriodNet,2))
         print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
         
-        #TODO: OVERLOAD CONTROL!!!    
         self.setLoad(loadsA[0],loadsA[1],loadsA[2])             
-    
         current_conditions = check_conditions()
 
-        #TODO:miksi eri loopit, randomin takia?, vai jäänne
-        for channel in channels:
-            target = channel.getTarget(current_conditions)
-            #print(channel.name, " got target: ",target)
-        
-        random_channels = channels.copy()
-        random.seed()
-        random.shuffle(random_channels) # set up load in random order
-        
-        for channel in random_channels:
-            target = channel.getTarget(current_conditions)  
-            channels[channel.idx].target = target 
-            if target["keep_up"]:
-                #channel.on = True
-                loadChange = channel.loadUp() #
-                if abs(loadChange) > 0: #only 1 v´chnage at one time, eli ei liikaa muutosta minuutissa
-                    break
-            elif not target["keep_up"] and target["condition"]: 
-                loadChange = channel.loadDown()
-                #channel.on = False
-                if abs(loadChange) > 0:
-                # print ("loadDown loadChange:", loadChange)
-                    break
+        # start channels
+        if powerGuru.localChannelsEnabled:
+            #TODO: OVERLOAD CONTROL!!!    
+
+
+            #TODO:miksi eri loopit, randomin takia?, vai jäänne
+            for channel in channels:
+                target = channel.getTarget(current_conditions)
+                #print(channel.name, " got target: ",target)
+            
+            random_channels = channels.copy()
+            random.seed()
+            random.shuffle(random_channels) # set up load in random order
+            
+            for channel in random_channels:
+                target = channel.getTarget(current_conditions)  
+                channels[channel.idx].target = target 
+                if target["keep_up"]:
+                    #channel.on = True
+                    loadChange = channel.loadUp() #
+                    if abs(loadChange) > 0: #only 1 v´chnage at one time, eli ei liikaa muutosta minuutissa
+                        break
+                elif not target["keep_up"] and target["condition"]: 
+                    loadChange = channel.loadDown()
+                    #channel.on = False
+                    if abs(loadChange) > 0:
+                    # print ("loadDown loadChange:", loadChange)
+                        break
     
+
         self.set_status_unpropagated() # latest status not propagated to clients
         # export to influxDB
 
@@ -723,13 +728,14 @@ def reportState(price_fields):
         "fields": price_fields
         })
            
-        for channel in channels:
-            channel_fields[channel.code]=  (1 if channel.up else 0)
-        json_body.append( {
-        "measurement": "channels",
-        "time":  datetime.now(timezone.utc),
-        "fields": channel_fields
-        })
+        if powerGuru.localChannelsEnabled:
+            for channel in channels:
+                channel_fields[channel.code]=  (1 if channel.up else 0)
+            json_body.append( {
+            "measurement": "channels",
+            "time":  datetime.now(timezone.utc),
+            "fields": channel_fields
+            })
 
         for condition_key,condition in conditions.items(): 
             condition_fields[condition_key]=  (1 if condition["enabled"] else 0)
@@ -745,7 +751,9 @@ def reportState(price_fields):
 
        # print ("Wrote to influx")
     except:
-         print ("Cannot write to influx", sys.exc_info())
+        print ("Cannot write to influx")
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
          
  
 
@@ -819,13 +827,13 @@ def load_program_config():
 
 
     #channels_list
-    channels_list = s.read_settings(s.channels_filename) 
-    #idx = 0
-    for idx,channel in enumerate(channels_list):
-        channel =  Channel(idx,"ch"+str(idx+1),channel)
-        channels.append(channel)
-         
-        #idx += 1
+    if powerGuru.localChannelsEnabled:
+        channels_list = s.read_settings(s.channels_filename) 
+        for idx,channel in enumerate(channels_list):
+            channel =  Channel(idx,"ch"+str(idx+1),channel)
+            channels.append(channel)
+            
+
 
     # conditions
     conditions = s.read_settings(s.conditions_filename) 
@@ -935,6 +943,9 @@ def process_sensor_data(temperature_data):
 #aiohttp
 
 def create_channel_form(channelIdx):
+    if not powerGuru.localChannelsEnabled:
+        return
+
 
     channel_entry = channels_list[channelIdx]
     #print("channel.sensor:", channel_entry["sensor"])
@@ -1078,7 +1089,6 @@ async def serve_conditions_editor(request):
         text_out = f.read()
 
     formData_str = json.dumps(create_conditions_form(), indent=None, separators=(",",":"))
-    print("formData_str:", formData_str)
     text_out = text_out.replace("#formData#", formData_str)
     return Response(text=text_out, content_type='text/html');
   
@@ -1227,6 +1237,15 @@ async def serve_status(request):
                 await asyncio.sleep(1)
     return resp
 
+async def serve_states(request):
+    states = {"states": [], "ts" : time.time()}
+    if current_conditions:
+        states["states"] = current_conditions
+    return Response(text=json.dumps(states), content_type='application/json')
+  
+
+    
+
 
 async def serve_dashboard(request):
     session = await get_session(request)
@@ -1310,6 +1329,7 @@ def main(argv):
     app = web.Application(middlewares=[middleware])
     app.router.add_route('GET', '/', serve_dashboard)
     app.router.add_route('GET', '/status', serve_status)
+    app.router.add_route('GET', '/states', serve_states)
     app.router.add_route('POST', '/telegraf', process_telegraf_post)
     app.router.add_route('GET', '/admin', serve_admin)
    

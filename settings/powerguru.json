@@ -12,5 +12,6 @@
     "timeZoneLocal": "Europe/Helsinki",
     "nettingPeriodMinutes": 60,
     "dayaheadWindowBlocks" : [6,12,18,24],
-    "solarForecastBlocks" : [6,12,18,24]
+    "solarForecastBlocks" : [6,12,18,24],
+    "localChannelsEnabled" : true
 }
