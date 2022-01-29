@@ -97,20 +97,39 @@ def aggregate_dayahead_prices():
                 energyPriceSpot = price_entry["fields"]["energyPriceSpot"]
                 powerGuru.set_variable("energyPriceSpot" , round(energyPriceSpot,2))
 
-   
 
     # now calculate spot price rank of current hour in different window sizes
-    
     for bCode in powerGuru.dayaheadWindowBlocks:
         rank = get_current_period_rank(bCode)
         if rank is not None:
             variable_code = s.spot_price_variable_code.format(bCode)
             powerGuru.set_variable(variable_code , rank)
 
+def aggregate_dayahead_prices_timeser(start,end):
+    #VAATII TESTAUSTA 
+    global dayahead_list,  powerGuru
+    
+    for time in range(start, end+1, powerGuru.nettingPeriodMinutes*60):
+        # Aggregate day-ahead prices
+        energyPriceSpot = None
+        if dayahead_list is not None:
+            for price_entry in dayahead_list:
+                if price_entry["timestamp"] <= time and  time< price_entry["timestamp"]+3600: # 60 minutesperiod
+                    energyPriceSpot = price_entry["fields"]["energyPriceSpot"]
+                    powerGuru.set_variable_timeser("energyPriceSpot",time,round(energyPriceSpot,2))
+
+        # now calculate spot price rank of current hour in different window sizes
+        for bCode in powerGuru.dayaheadWindowBlocks:
+            rank = get_period_rank_timeser(time,bCode)
+            if rank is not None:
+                variable_code = s.spot_price_variable_code.format(bCode)
+                #powerGuru.set_variable(variable_code , rank)
+                powerGuru.set_variable_timeser(variable_code,time,rank)
+
+        
 
 def aggregate_solar_forecast():
     global forecastpv_list, powerGuru
-
     blockSums = {}
     for bCodei in powerGuru.solarForecastBlocks:
         blockSums[str(bCodei)] = 0
@@ -125,8 +144,28 @@ def aggregate_solar_forecast():
     for sfbCode,sfb in blockSums.items():  
         blockCode = s.solar_forecast_variable_code.format(sfbCode)
         powerGuru.set_variable(blockCode , round(sfb,2))
-    
 
+
+def aggregate_solar_forecast_timeser(start,end):
+    #TESTATTAVA
+    global forecastpv_list, powerGuru
+
+    for time in range(start, end+1, powerGuru.nettingPeriodMinutes*60):
+        blockSums = {}
+        for bCodei in powerGuru.solarForecastBlocks:
+            blockSums[str(bCodei)] = 0
+
+        if forecastpv_list is not None:
+            for fcst_entry in forecastpv_list:
+                for bCodei in powerGuru.solarForecastBlocks:
+                    futureHours = bCodei        
+                    if fcst_entry["timestamp"] < time+(futureHours*3600):
+                        blockSums[str(bCodei)] += fcst_entry["fields"]["pvrefvalue"]
+
+        for sfbCode,sfb in blockSums.items():  
+            blockCode = s.solar_forecast_variable_code.format(sfbCode)
+            #powerGuru.set_variable(blockCode , round(sfb,2))
+            powerGuru.set_variable_timeser(blockCode,time,round(sfb,2))
 
 
 
@@ -168,30 +207,79 @@ class PowerGuru:
         self.solarForecastBlocks = self.get_setting("solarForecastBlocks") 
         self.localChannelsEnabled = self.get_setting("localChannelsEnabled")
         
-
         self.lines = [ (1, 0),(2, 0),(3, 0)]
         
         self.lines_sorted = self.lines
         self.status_propagated = True
         self.variables = {}
-
-    def set_variable(self,field_code,value):
-        self.variables[field_code] = {"value": value, "ts" : time.time(), "type" : "num"}
-
-    def print_variables(self):
-        print("PowerGuru.variables()")
-        for vkey,variable in self.variables.items():
-            print("{}={}".format(vkey,variable["value"]))
-
+        self.variables_timeser = {}
     
+    def get_current_period_id(self):
+        return  int(time.time()/(self.nettingPeriodMinutes*60))
+
+    def get_current_period_start(self):
+        return  int(time.time()/(self.nettingPeriodMinutes*60))*(self.nettingPeriodMinutes*60)
+
+    # time series
+    # { "type" : "num", "values": {"time": value }}
+    def set_variable_timeser(self,field_code,time,value,type = "num"):
+        print("set_variable_timeser:", field_code, time,value)
+        if field_code not in self.variables_timeser: # time series exists, use it
+            self.variables_timeser[field_code] = {"values": {}, "type" : type}   
+        self.variables_timeser[field_code]["values"][str(time)] = value
+
+
+    def get_values_timeser(self,field_code,time_first=None, time_last=None):
+        if time_first is None:
+            time_first = self.get_current_period_start()
+        if time_last is None:
+            time_last = time_first+24*3600-1
+        if field_code not in self.variables_timeser:
+            return {}
+
+        return_values = {}
+        for vkey,variable in self.variables_timeser[field_code]["values"].items():
+            if str(time_first) <= vkey and vkey <= str(time_last):
+                return_values[vkey] = variable
+        return return_values
+
+    def get_value_timeser(self,field_code,time,default_value = None):
+        if field_code == 'mmdd' or field_code == 'hhmm':
+            tz_local = pytz.timezone(powerGuru.get_setting("timeZoneLocal"))
+            dt = datetime.fromtimestamp(time, tz_local)
+            if field_code == 'mmdd':
+                return dt.strftime("'%m%d'")
+            elif field_code == 'hhmm':
+                return dt.strftime("'%H%M'")
+        else:
+            if field_code in self.variables_timeser:
+                if str(time) in self.variables_timeser[field_code]["values"]:
+                    if self.variables_timeser[field_code]["type"] == "str":
+                        return "'{}'".format(self.variables[field_code]["values"][str(time)])
+                    else:
+                        return self.variables_timeser[field_code]["values"][str(time)]
+                else:
+                    return default_value
+            else:
+                return default_value
+
+ 
+    #29.1.2021 ei ollut käytössä
+    """
     def set_variables(self,new_values):
         field_group = new_values["name"]
         for vkey,value in new_values["fields"].items():
             vcode = "{}:{}".format(field_group,vkey)
             self.set_variable(vcode,value)
-        
-        #print("*******set_variables********")
-        #pp.pprint(self.variables)
+    
+    def print_variables(self):
+        print("PowerGuru.variables()")
+        for vkey,variable in self.variables.items():
+            print("{}={}".format(vkey,variable["value"]))
+    """
+    def set_variable(self,field_code,value):
+        self.variables[field_code] = {"value": value, "ts" : time.time(), "type" : "num"}
+
         
     def get_value(self,field_code,default_value = None):
         #TODO: check if value is expired, expiration in variables settings file .. coming later
@@ -216,7 +304,6 @@ class PowerGuru:
         return_object["hhmm"] = {"value": datetime.now().strftime("%H%M"), "ts" : time.time(), "type" : "str"}
         return_object["mmdd"] = {"value": datetime.now().strftime("%m%d"), "ts" : time.time(), "type" : "str"}
         return return_object.items()
-
 
 
     def set_status_unpropagated(self):
@@ -300,8 +387,6 @@ class PowerGuru:
         if current_conditions:
             status["current_conditions"] = current_conditions
 
-     
-
         if gridenergy_data:
             status["Wsys"] = gridenergy_data["fields"]["Wsys"]
         else:
@@ -371,7 +456,8 @@ class PowerGuru:
         if netPreviousTotalEnergy == -1:
             netPreviousTotalEnergy = cumulativeEnergy
             
-        currentNettingPeriod = int(time.time()/(self.nettingPeriodMinutes*60))
+        #currentNettingPeriod = int(time.time()/(self.nettingPeriodMinutes*60))
+        currentNettingPeriod = self.get_current_period_id()
 
         if netPreviousTotalEnergyPeriod != currentNettingPeriod:
             # this should probably be run when a new hour (period) starts, not always
@@ -676,6 +762,23 @@ def check_conditions():
     pp.pprint (ok_conditions)
     return ok_conditions
 
+def check_conditions_timeser(start, end):
+    global conditions
+    global powerGuru
+    print("aikaväli:",start, end)
+    for time in range(start, end+1, powerGuru.nettingPeriodMinutes*60):
+        ok_conditions = []
+        for condition_key,condition in conditions.items(): # check 
+            if "enabledIf" in condition:
+                condition_returned, error_in_test = test_formula_timeser( condition["enabledIf"],time)  
+                if condition_returned and not error_in_test: 
+                    ok_conditions.append(condition_key)   #Voisi olla kai int tästä    
+
+        print (time, ok_conditions)
+        powerGuru.set_variable_timeser("states",time,ok_conditions,"list")
+
+    return 
+
 
 def test_formula(formula,info):
     #returns: value,isError
@@ -685,6 +788,42 @@ def test_formula(formula,info):
     for vkey,v in powerGuru.get_variables():
         if vkey in eval_string:
             variable_value = powerGuru.get_value(vkey,None)
+            if variable_value is not None:
+                eval_string = eval_string.replace(vkey,str(variable_value))
+            else:
+                print("Variable {} value was None:".format(vkey))
+                return False, True
+            
+    try:
+        eval_value = eval(eval_string,{})   
+    except NameError:
+        print("Variable(s) undefined in " + eval_string)
+        return False, True 
+
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
+        print("eval_string: ",eval_string)
+        return False, True  
+
+    #print("formula {},  [{}] => {}".format(info,eval_string, eval_value))
+    return eval_value, False 
+
+
+def test_formula_timeser(formula,time):
+    global powerGuru
+    variable_keys = list(powerGuru.variables_timeser.keys())
+
+    #print(variable_keys)
+    #pp.pprint(variable_keys)
+
+    variable_keys.append("hhmm")
+    variable_keys.append("mmdd")
+    eval_string = formula
+
+    for vkey in variable_keys:
+        if vkey in eval_string:
+            variable_value = powerGuru.get_value_timeser(vkey,time,None) ########
             if variable_value is not None:
                 eval_string = eval_string.replace(vkey,str(variable_value))
             else:
@@ -805,6 +944,24 @@ def get_current_period_rank(window_duration_hours):
             rank += 1
         
     print("****Cannot find current_period_start_ts in the window", current_period_start_ts)
+    return None
+
+def get_period_rank_timeser(time, window_duration_hours):
+    global powerGuru
+    #period_in_seconds = 60*powerGuru.nettingPeriodMinutes
+    #current_period_start_ts = int(time.time()/period_in_seconds)*period_in_seconds
+
+    price_window_sorted = get_spot_sliding_window_periods(time, window_duration_hours)
+    rank = 1
+    if price_window_sorted is not None:
+        for entry in price_window_sorted:
+            if time == entry["ts"]:
+                #print("window size hours:", window_duration_hours, ", rank:", rank )
+                #pp.pprint(price_window_sorted)
+                return rank
+            rank += 1
+        
+    print("****Cannot find current_period_start_ts in the window", time)
     return None
 
 
@@ -1238,12 +1395,51 @@ async def serve_status(request):
     return resp
 
 async def serve_states(request):
+    if not 'states' in request.rel_url.query:
+        print("Missing parameter: states")
+        return Response(text="Missing parameter: states", content_type='text/html')
+        
+    states_requested_str = request.rel_url.query['states']
+    #print("states_requested_str:", states_requested_str)
+    states_requested = states_requested_str.split(",")
+    #print("states_requested:", states_requested)
+
+    for idx, state in enumerate(states_requested):
+        states_requested[idx] = state.strip()
+
+
     states = {"states": [], "ts" : time.time()}
     if current_conditions:
-        states["states"] = current_conditions
+        for condition in current_conditions:
+            if condition in states_requested:
+                #print(condition, " is in states_requested:", states_requested)
+                states["states"].append(condition)
+            #else:
+            #    print(condition, " is not in states_requested:", states_requested)
     return Response(text=json.dumps(states), content_type='application/json')
   
 
+async def serve_state_series(request):
+    global powerGuru
+
+    #TODO: cache in the future
+    #TODO: parameters, e.g.price area, bcdc location, kai...?
+    
+    #first create time series for variables (excluding sensored)
+    #TODO: nämä parametreista
+    start = powerGuru.get_current_period_start()
+    end = start +3600*24
+  
+    aggregate_dayahead_prices_timeser(start,end)
+    aggregate_solar_forecast_timeser(start,end)
+
+    # this populates states timeseries
+    check_conditions_timeser(start,end)
+
+    
+    state_series = powerGuru.get_values_timeser("states",start,end)
+
+    return Response(text=json.dumps(state_series), content_type='application/json')
     
 
 
@@ -1276,16 +1472,13 @@ async def process_telegraf_post(request):
         gridenergy_new = filtered_fields(obj["metrics"],"gridenergy",False)
         #this
         if len(gridenergy_new)==1: # there should be only one entry
-            #
-            #powerGuru.set_variables(gridenergy_new[0])
-            #powerGuru.print_variables() #debugging
+
             gridenergy_data = gridenergy_new[0]
             #TODO: trigger recalculate also after other updates but wait thats all requests in the incoming Telegraf buffer are processed
             powerGuru.recalculate()
         
         temperature_new = filtered_fields(obj["metrics"],"temperature",False)
         if len(temperature_new)>0:
-            #powerGuru.set_variables(temperature_new)
             temperature_data = temperature_new
             process_sensor_data(temperature_data)
             
@@ -1330,6 +1523,8 @@ def main(argv):
     app.router.add_route('GET', '/', serve_dashboard)
     app.router.add_route('GET', '/status', serve_status)
     app.router.add_route('GET', '/states', serve_states)
+    app.router.add_route('GET', '/state_series', serve_state_series)
+    
     app.router.add_route('POST', '/telegraf', process_telegraf_post)
     app.router.add_route('GET', '/admin', serve_admin)
    

@@ -1,1 +1,54 @@
-{"cheapest24h": {"enabledIf": "spotPriceRank24h==1", "desc": "Cheapest spot price in 24 h window"}, "netsales": {"enabledIf": "purchasedEnergyPeriodNet<0", "desc": "More production than consumption, nettoperiodi"}, "sunnydaycoming": {"enabledIf": "solar12h>5 and hhmm > '0400' and hhmm <'0700'", "desc": "sunny day coming (do not overheat the boilers)"}, "darkdaycoming": {"enabledIf": "solar12h<5 and hhmm > '0400' and hhmm <'0700'", "desc": "dark day coming (heat the boilers, there will be no cheap energy today)"}, "morning": {"enabledIf": "hhmm > '0700' and hhmm <'1000'", "desc": "varaajat levossa, aurinkos\u00e4hk\u00f6\u00e4 odotellessa ainakin kes\u00e4ll\u00e4"}, "evening": {"enabledIf": "hhmm > '1830' and hhmm <'2205'", "desc": "varaajat levossa, y\u00f6s\u00e4hk\u00f6\u00e4 odotellessa"}, "night": {"enabledIf": "hhmm < '0700' or hhmm >'2200'", "desc": "y\u00f6hinnoittelu"}, "summernight": {"enabledIf": "(hhmm < '0700' or hhmm >'2200') and (mmdd > '0214' and mmdd < '1016')", "desc": "kes\u00e4y\u00f6 kalenterin mukaan"}, "winternight": {"enabledIf": "(hhmm < '0700' or hhmm >'2200') and (mmdd < '0215' or mmdd > '1015')", "desc": "talviy\u00f6 kalenterin mukaan"}, "day": {"enabledIf": "hhmm >= '0700' and hhmm <'2200'", "desc": "p\u00e4iv\u00e4hinnoittelu"}, "default": {"enabledIf": "hhmm >= '0000' and hhmm <='2359'", "desc": "Matches always"}, "spothigh": {"enabledIf": "energyPriceSpot>15", "desc": "Spot price is high"}, "spotlow": {"enabledIf": "energyPriceSpot<4.0 and spotPriceRank24h<=6", "desc": "Spot price is low and now it is one of 6 cheapest hour in 24 h"}, "spotpeak12h": {"enabledIf": "spotPriceRank12h>8", "desc": "4 most expensive spot prices in 12h window"}}
+{
+    "0": {
+        "enabledIf": "hhmm >= '0000' and hhmm <='2359'",
+        "desc": "Matches always"
+    },
+    "1002": {
+        "enabledIf": "purchasedEnergyPeriodNet<0",
+        "desc": "Selling, More production than consumption, nettoperiodi"
+    },
+    "10101": {
+        "enabledIf": "hhmm >= '0700' and hhmm <'2200'",
+        "desc": "p\u00e4iv\u00e4hinnoittelu"
+    },
+    "10102": {
+        "enabledIf": "hhmm < '0700' or hhmm >='2200'",
+        "desc": "y\u00f6hinnoittelu"
+    },
+    "10103": {
+        "enabledIf": "(hhmm < '0700' or hhmm >'2200') and (mmdd > '0214' and mmdd < '1016')",
+        "desc": "kes\u00e4y\u00f6 kalenterin mukaan"
+    },
+    "10104": {
+        "enabledIf": "(hhmm < '0700' or hhmm >'2200') and (mmdd < '0215' or mmdd > '1015')",
+        "desc": "talviy\u00f6 kalenterin mukaan"
+    },
+    "10115": {
+        "enabledIf": "hhmm > '0700' and hhmm <'1000'",
+        "desc": "varaajat levossa, aurinkos\u00e4hk\u00f6\u00e4 odotellessa ainakin kes\u00e4ll\u00e4"
+    },
+    "10120": {
+        "enabledIf": "hhmm > '1800' and hhmm <'2200'",
+        "desc": "varaajat levossa, y\u00f6s\u00e4hk\u00f6\u00e4 odotellessa"
+    },
+    "11022": {
+        "enabledIf": "energyPriceSpot>10",
+        "desc": "Spot price is high"
+    },
+    "11141": {
+        "enabledIf": "spotPriceRank24h==1",
+        "desc": "Cheapest spot price in 24 h window"
+    },
+    "11156": {
+        "enabledIf": "energyPriceSpot<4.0 and spotPriceRank24h<=6",
+        "desc": "Spot price is low and now it is one of 6 cheapest hour in 24 h"
+    },
+    "12110": {
+        "enabledIf": "solar12h<5 and hhmm > '0400' and hhmm <'0700'",
+        "desc": "dark day coming (heat the boilers, there will be no cheap energy today)"
+    },
+    "12120": {
+        "enabledIf": "solar12h>5 and hhmm > '0400' and hhmm <'0700'",
+        "desc": "sunny 10101 coming (do not overheat the boilers)"
+    }
+}
