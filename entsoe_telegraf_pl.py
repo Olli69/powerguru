@@ -22,7 +22,7 @@ import pytz
 powerguru_settings = s.read_settings(s.powerguru_file_name)
 timeZoneLocal =  powerguru_settings["timeZoneLocal"]
 EntsoEUAPIToken = powerguru_settings["EntsoEUAPIToken"]
-NordPoolPriceArea = powerguru_settings["NordPoolPriceArea"]
+SpotPriceArea = powerguru_settings["SpotPriceArea"]
 
 
 tz_local = pytz.timezone(timeZoneLocal)
@@ -43,7 +43,7 @@ def getNordPoolSPOTfromEntsoEU():
     end1 = end1 + timedelta(days=3) # can be a bit longer in the future, you get what you get
 
    
-    country_code = NordPoolPriceArea  
+    country_code = SpotPriceArea  
     tag_name = "dayahead"
     try:
         #print ("Querying - country code: {:s}, start: {:s}, end: {:s}".format(country_code, start1.strftime("%Y-%m-%dT%H:%M:%S"),end1.strftime("%Y-%m-%dT%H:%M:%S")))  
@@ -64,7 +64,7 @@ def getNordPoolSPOTfromEntsoEU():
                 measurement="spot",
                 #fields={"energyPriceSpot":energyPriceSpot,"energyPrice":energyPrice,"transferPrice": transferPrice,"totalPrice":totalPrice },
                 fields={"energyPriceSpot":energyPriceSpot},
-                tags = { "priceArea": NordPoolPriceArea, "name" : tag_name},
+                tags = { "priceArea": SpotPriceArea, "name" : tag_name},
                 nano_timestamp=datetime_tzinfo_to_nano_unix_timestamp(trdt)
             )  
 

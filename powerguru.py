@@ -123,7 +123,6 @@ def aggregate_dayahead_prices_timeser(start,end):
             rank = get_period_rank_timeser(time,bCode)
             if rank is not None:
                 variable_code = s.spot_price_variable_code.format(bCode)
-                #powerGuru.set_variable(variable_code , rank)
                 powerGuru.set_variable_timeser(variable_code,time,rank)
 
         
@@ -164,7 +163,6 @@ def aggregate_solar_forecast_timeser(start,end):
 
         for sfbCode,sfb in blockSums.items():  
             blockCode = s.solar_forecast_variable_code.format(sfbCode)
-            #powerGuru.set_variable(blockCode , round(sfb,2))
             powerGuru.set_variable_timeser(blockCode,time,round(sfb,2))
 
 
@@ -223,7 +221,7 @@ class PowerGuru:
     # time series
     # { "type" : "num", "values": {"time": value }}
     def set_variable_timeser(self,field_code,time,value,type = "num"):
-        print("set_variable_timeser:", field_code, time,value)
+        #print("set_variable_timeser:", field_code, time,value)
         if field_code not in self.variables_timeser: # time series exists, use it
             self.variables_timeser[field_code] = {"values": {}, "type" : type}   
         self.variables_timeser[field_code]["values"][str(time)] = value
@@ -264,19 +262,7 @@ class PowerGuru:
                 return default_value
 
  
-    #29.1.2021 ei ollut käytössä
-    """
-    def set_variables(self,new_values):
-        field_group = new_values["name"]
-        for vkey,value in new_values["fields"].items():
-            vcode = "{}:{}".format(field_group,vkey)
-            self.set_variable(vcode,value)
-    
-    def print_variables(self):
-        print("PowerGuru.variables()")
-        for vkey,variable in self.variables.items():
-            print("{}={}".format(vkey,variable["value"]))
-    """
+
     def set_variable(self,field_code,value):
         self.variables[field_code] = {"value": value, "ts" : time.time(), "type" : "num"}
 
@@ -771,10 +757,11 @@ def check_conditions_timeser(start, end):
         for condition_key,condition in conditions.items(): # check 
             if "enabledIf" in condition:
                 condition_returned, error_in_test = test_formula_timeser( condition["enabledIf"],time)  
-                if condition_returned and not error_in_test: 
-                    ok_conditions.append(condition_key)   #Voisi olla kai int tästä    
+                # do not replicate internal states, typically max 999
+                if condition_returned and not error_in_test and int(condition_key)>s.states_internal_max: 
+                    ok_conditions.append(int(condition_key))   #Voisi olla kai int tästä    
 
-        print (time, ok_conditions)
+        #print (time, ok_conditions)
         powerGuru.set_variable_timeser("states",time,ok_conditions,"list")
 
     return 
@@ -810,7 +797,7 @@ def test_formula(formula,info):
     return eval_value, False 
 
 
-def test_formula_timeser(formula,time):
+def test_formula_timeser(formula,time,debudError=False):
     global powerGuru
     variable_keys = list(powerGuru.variables_timeser.keys())
 
@@ -833,7 +820,8 @@ def test_formula_timeser(formula,time):
     try:
         eval_value = eval(eval_string,{})   
     except NameError:
-        print("Variable(s) undefined in " + eval_string)
+        if debudError:
+            print("Variable(s) undefined in " + eval_string)
         return False, True 
 
     except:
@@ -1421,14 +1409,30 @@ async def serve_states(request):
 
 async def serve_state_series(request):
     global powerGuru
-
     #TODO: cache in the future
     #TODO: parameters, e.g.price area, bcdc location, kai...?
     
-    #first create time series for variables (excluding sensored)
+    if not 'price_area' in request.rel_url.query:
+        return Response(text="Missing parameter: price_area", content_type='text/html')
+
     #TODO: nämä parametreista
     start = powerGuru.get_current_period_start()
     end = start +3600*24
+
+    # user can limit the time window, in future cached version there could be cache filters
+    if 'start' in request.rel_url.query:
+        start = max(start,int(request.rel_url.query['start']))
+    if 'end' in request.rel_url.query:
+        end = min(end,int(request.rel_url.query['end']))
+
+    #One instance supports only one price area
+    price_area = request.rel_url.query['price_area']
+    if price_area != powerGuru.get_setting("SpotPriceArea"):
+        return Response(text="Only price_area {} is supported by this server.".format(powerGuru.get_setting("SpotPriceArea")), content_type='text/html')
+
+
+    #first create time series for variables (excluding sensored)
+
   
     aggregate_dayahead_prices_timeser(start,end)
     aggregate_solar_forecast_timeser(start,end)

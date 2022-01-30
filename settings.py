@@ -42,6 +42,8 @@ volts_per_phase = 230
 spot_price_variable_code = "spotPriceRank{}h"
 solar_forecast_variable_code = "solar{}h"
 
+states_internal_max = 999 #internal, non-replicated: 0-999
+
 
 
 

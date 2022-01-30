@@ -6,7 +6,7 @@
     "EntsoEUAPIToken": "41c76142-eaab-4bc2-9dc4-5215017e4f6b",
     "InfluxDBClientUrl": "http://127.0.0.1:8086",
     "InfluxDBClientToken": "",
-    "NordPoolPriceArea": "FI",
+    "SpotPriceArea": "FI",
     "bcdcenergiaLocation": "Salo",
     "maxLoadPerPhaseA": 50.0,
     "timeZoneLocal": "Europe/Helsinki",
