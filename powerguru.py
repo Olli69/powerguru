@@ -978,11 +978,8 @@ def load_program_config():
             channel =  Channel(idx,"ch"+str(idx+1),channel)
             channels.append(channel)
             
-
-
     # conditions
     conditions = s.read_settings(s.conditions_filename) 
-
     
     # TODO: cache expiration to parameters
     expire_file_cache_h = 8
@@ -1411,7 +1408,7 @@ async def serve_state_series(request):
     global powerGuru
     #TODO: cache in the future
     #TODO: parameters, e.g.price area, bcdc location, kai...?
-    
+    #TODO: limit queries, eg. 4 for ip-address/24h if no API-key, with API key more but not unlimited
     if not 'price_area' in request.rel_url.query:
         return Response(text="Missing parameter: price_area", content_type='text/html')
 

@@ -28,7 +28,7 @@
             },
             {
                 "targetConditions": [
-                    "0"
+                    "1"
                 ],
                 "upIf": "sensor1<62",
                 "type": "sensorbelow",
@@ -56,7 +56,7 @@
             },
             {
                 "targetConditions": [
-                    "0"
+                    "1"
                 ],
                 "upIf": "sensor1<10",
                 "type": "sensorbelow",
@@ -83,7 +83,7 @@
             },
             {
                 "targetConditions": [
-                    "0"
+                    "1"
                 ],
                 "upIf": "True",
                 "type": "up",
@@ -112,7 +112,7 @@
             },
             {
                 "targetConditions": [
-                    "0"
+                    "1"
                 ],
                 "upIf": "False",
                 "type": "down",
@@ -139,7 +139,7 @@
             },
             {
                 "targetConditions": [
-                    "0"
+                    "1"
                 ],
                 "upIf": "False",
                 "type": "down",

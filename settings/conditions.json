@@ -1,5 +1,5 @@
 {
-    "0": {
+    "1": {
         "enabledIf": "hhmm >= '0000' and hhmm <='2359'",
         "desc": "Matches always"
     },

@@ -5,8 +5,15 @@ After=multi-user.target
 [Service]
 Type=idle
 ExecStart=/usr/bin/python3 /home/pi/powerguru/powerguru.py 
-StandardOutput=null
+WorkingDirectory=/home/pi/powerguru
+#StandardOutput=null
 #> /home/pi/powerguru/powerguru.log 2>&1
 
 [Install]
 WantedBy=multi-user.target
+#sudo ln -s /home/pi/powerguru/powerguru.service /etc/systemd/system/powerguru.service
+#sudo chmod 644 /etc/systemd/system/powerguru.service
+#sudo systemctl daemon-reload
+#sudo systemctl enable powerguru.service
+#sudo systemctl start powerguru.service
+#sudo systemctl status powerguru.service
