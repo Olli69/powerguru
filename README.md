@@ -13,7 +13,7 @@ It calculates target temperatures of the heaters once in a minute and switches o
 
 [InfluxDB](https://www.influxdata.com/) is an open-source time series database . [Grafana](https://grafana.com/) is an open source analytics and interactive visualization web application. Analytics of collected metrics and data is optional. A cloud based service, e.g. [InfluxDB Cloud](https://www.influxdata.com/products/influxdb-cloud/) is probobly easiest to start with. If you like to host InfluxDB locally, use other storage media than a micro SD card, which is not designed for frequent writes. 
 
-![Data flow diagram](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagrama%20witha%20lite.drawio.png?raw=true)
+![Data flow diagram](https://github.com/Olli69/powerguru/blob/main/docs/img/Powerguru%20data%20diagram%20with%20lite.drawio.png?raw=true)
 
 ### Telegraf - Powerguru communication
 Telegraf [outputs.http plugin](https://github.com/influxdata/telegraf/blob/release-1.21/plugins/outputs/http/README.md) sends buffered metrics updates to Powerguru http interface. Powerguru calculation data series are updated to an optional InfluxDB database via Telegraf proxy service [inputs.influxdb_v2_listener](https://github.com/influxdata/telegraf/blob/release-1.21/plugins/inputs/http_listener_v2/README.md).
