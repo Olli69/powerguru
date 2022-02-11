@@ -64,7 +64,7 @@ gridenergy_data = None
 temperature_data = None
 dayahead_list = None 
 forecastpv_list = None
-current_conditions = None
+current_states = None
 
 netPreviousTotalEnergyPeriod = -999
 netPreviousTotalEnergy = -1
@@ -72,7 +72,7 @@ purchasedEnergyPeriodNet = 0
 netPeriodMeasurementCount = 0
 
 sensor_settings = None
-conditions = None
+states = None
 channels_list = None
 
 # global variables
@@ -351,7 +351,7 @@ class PowerGuru:
 
         tz_utc = pytz.timezone("UTC")
         
-        status = {"channels": [], "updates":[], "sensors":[], "variables":[], "current_conditions":None}
+        status = {"channels": [], "updates":[], "sensors":[], "variables":[], "current_states":None}
 
         for idx,channel in enumerate(channels):
             status["channels"].append({ "idx" : idx, "code" : channel.code, "name" : channel.name, "up":  channel.up, "target" : channel.target })
@@ -370,8 +370,8 @@ class PowerGuru:
         for sensor in sensorData.sensors:
             status["sensors"].append({ "code" : sensor["code"], "id" : sensor["id"], "name" : sensor["name"], "value":  sensor["value"] })
 
-        if current_conditions:
-            status["current_conditions"] = current_conditions
+        if current_states:
+            status["current_states"] = current_states
 
         if gridenergy_data:
             status["Wsys"] = gridenergy_data["fields"]["Wsys"]
@@ -386,7 +386,7 @@ class PowerGuru:
         print ('#recalculate')
         #global self
         global purchasedEnergyPeriodNet, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
-        global current_conditions
+        global current_states
         global gridenergy_data, temperature_data, dayahead_list, forecastpv_list
     
         
@@ -461,7 +461,7 @@ class PowerGuru:
         print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
         
         self.setLoad(loadsA[0],loadsA[1],loadsA[2])             
-        current_conditions = check_conditions()
+        current_states = check_states()
 
         # start channels
         if powerGuru.localChannelsEnabled:
@@ -470,7 +470,7 @@ class PowerGuru:
 
             #TODO:miksi eri loopit, randomin takia?, vai jäänne
             for channel in channels:
-                target = channel.getTarget(current_conditions)
+                target = channel.getTarget(current_states)
                 #print(channel.name, " got target: ",target)
             
             random_channels = channels.copy()
@@ -478,14 +478,14 @@ class PowerGuru:
             random.shuffle(random_channels) # set up load in random order
             
             for channel in random_channels:
-                target = channel.getTarget(current_conditions)  
+                target = channel.getTarget(current_states)  
                 channels[channel.idx].target = target 
                 if target["keep_up"]:
                     #channel.on = True
                     loadChange = channel.loadUp() #
                     if abs(loadChange) > 0: #only 1 v´chnage at one time, eli ei liikaa muutosta minuutissa
                         break
-                elif not target["keep_up"] and target["condition"]: 
+                elif not target["keep_up"] and target["state"]: 
                     loadChange = channel.loadDown()
                     #channel.on = False
                     if abs(loadChange) > 0:
@@ -528,7 +528,7 @@ class SensorData:
         for sensor in self.sensors:
             if sensor["id"] == id:
                 sensor["value"]= value
-                # set sensor value to variables, so it can be used in conditions
+                # set sensor value to variables, so it can be used in states
                 powerGuru.set_variable(sensor["code"],round(value,1))
                 return
                 
@@ -613,7 +613,7 @@ class Channel:
         self.targets = [] 
         if "targets" in data:
             for target in data["targets"]:
-                tn = {"targetConditions" : target["targetConditions"], "sensor" : target.get("sensor",None), "upIf": target.get("upIf",None),"valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
+                tn = {"targetStates" : target["targetStates"], "sensor" : target.get("sensor",None), "upIf": target.get("upIf",None),"valueabove": target.get("valueabove",None), "valuebelow": target.get("valuebelow",None), "forceOn" :  target.get("forceOn",None)}
                 self.targets.append(tn) 
         """
         print()
@@ -627,29 +627,29 @@ class Channel:
         """
     
     
-    def getTarget(self,current_conditions):
-        # get first channel target where condition is matching
+    def getTarget(self,current_states):
+        # get first channel target where state is matching
         for target in self.targets:
-#targetConditions            
-#            if target["condition"] in current_conditions:
-            matching_condition = None
-            if "targetConditions" in target:
-                for condi in target["targetConditions"]:
-                    if condi in current_conditions:
-                        matching_condition = condi
+#targetStates            
+#            if target["state"] in current_states:
+            matching_state = None
+            if "targetStates" in target:
+                for condi in target["targetStates"]:
+                    if condi in current_states:
+                        matching_state = condi
                         break
 
-            if matching_condition:
+            if matching_state:
                 if "upIf" in target and target["upIf"] is not None:
-                    keep_up,error_in_test = test_formula( target["upIf"],self.name+ ":"  +matching_condition  )  
+                    keep_up,error_in_test = test_formula( target["upIf"],self.name+ ":"  +matching_state  )  
                     if error_in_test: #possibly error in target t, try next one (should we panic and break )
                         #TODO: error in formula (e.g. wrong variable) should be reported somehow to dashboard - error list...
                         continue # try next target
                     else: #found first matching target
-                        return {"condition" : matching_condition,"keep_up":keep_up,"upIf": target["upIf"] }    
+                        return {"state" : matching_state,"keep_up":keep_up,"upIf": target["upIf"] }    
 
         
-        return {"condition" : None,"keep_up":False} # no matching target
+        return {"state" : None,"keep_up":False} # no matching target
     
     def getLine(self,l):
         for line in self.lines:
@@ -729,40 +729,41 @@ def sig_handler(signum, frame):
     exit(1)
     
     
-def check_conditions():
-    ok_conditions = []
-    global conditions
+def check_states():
+    ok_states = []
+    global states
     global powerGuru
   
     #TODO: spotlowesthours - kuluvan päivän x halvinta tuntia, tässä pitäisi kyllä ottaa myös kuluneet
     #voisi ottaa ko päivän kuluneet ja koko tiedetyn tulevaisuuden
-    for condition_key,condition in conditions.items(): # check 
-        if "enabledIf" in condition:
-            condition_returned, error_in_test = test_formula( condition["enabledIf"],condition_key)  
-            if condition_returned and not error_in_test: 
-                ok_conditions.append(condition_key)      
+    for state_key,state in states.items(): # check 
+        #print(state_key,state )
+        if "enabledIf" in state:
+            state_returned, error_in_test = test_formula( state["enabledIf"],state_key)  
+            if state_returned and not error_in_test: 
+                ok_states.append(state_key)      
 
-    for condition_key,condition in conditions.items(): 
-        conditions[condition_key]["enabled"] = (condition_key in ok_conditions)
-        
-    pp.pprint (ok_conditions)
-    return ok_conditions
+    for state_key,state in states.items(): 
+        states[state_key]["enabled"] = (state_key in ok_states)
+    print("check_states result:")   
+    pp.pprint (ok_states)
+    return ok_states
 
-def check_conditions_timeser(start, end):
-    global conditions
+def check_states_timeser(start, end):
+    global states
     global powerGuru
     print("aikaväli:",start, end)
     for time in range(start, end+1, powerGuru.nettingPeriodMinutes*60):
-        ok_conditions = []
-        for condition_key,condition in conditions.items(): # check 
-            if "enabledIf" in condition:
-                condition_returned, error_in_test = test_formula_timeser( condition["enabledIf"],time)  
+        ok_states = []
+        for state_key,state in states.items(): # check 
+            if "enabledIf" in state:
+                state_returned, error_in_test = test_formula_timeser( state["enabledIf"],time)  
                 # do not replicate internal states, typically max 999
-                if condition_returned and not error_in_test and int(condition_key)>s.states_internal_max: 
-                    ok_conditions.append(int(condition_key))   #Voisi olla kai int tästä    
+                if state_returned and not error_in_test and int(state_key)>s.states_internal_max: 
+                    ok_states.append(int(state_key))   #Voisi olla kai int tästä    
 
-        #print (time, ok_conditions)
-        powerGuru.set_variable_timeser("states",time,ok_conditions,"list")
+        #print (time, ok_states)
+        powerGuru.set_variable_timeser("states",time,ok_states,"list")
 
     return 
 
@@ -837,7 +838,7 @@ def test_formula_timeser(formula,time,debudError=False):
         
 def reportState(price_fields): 
     global powerGuru
-    condition_fields = {}
+    state_fields = {}
     channel_fields = {}
 
     # via Telegraf relay to influxDB
@@ -864,13 +865,13 @@ def reportState(price_fields):
             "fields": channel_fields
             })
 
-        for condition_key,condition in conditions.items(): 
-            condition_fields[condition_key]=  (1 if condition["enabled"] else 0)
+        for state_key,state in states.items(): 
+            state_fields[state_key]=  (1 if state["enabled"] else 0)
             
         json_body.append( {
-            "measurement": "conditions",
+            "measurement": "states",
             "time":  datetime.now(timezone.utc),
-            "fields": condition_fields
+            "fields": state_fields
             })
 
         write_api = ifclient.write_api(write_options=SYNCHRONOUS)
@@ -958,7 +959,7 @@ def get_period_rank_timeser(time, window_duration_hours):
 
 def load_program_config():
     global actuators,sensorData,thermometers, powerGuru
-    global sensor_settings,conditions #,switches
+    global sensor_settings,states #,switches
     global dayahead_list, forecastpv_list
     global channels_list
     
@@ -978,8 +979,8 @@ def load_program_config():
             channel =  Channel(idx,"ch"+str(idx+1),channel)
             channels.append(channel)
             
-    # conditions
-    conditions = s.read_settings(s.conditions_filename) 
+    # states
+    states = s.read_settings(s.states_filename) 
     
     # TODO: cache expiration to parameters
     expire_file_cache_h = 8
@@ -1124,7 +1125,7 @@ def create_channel_form(channelIdx):
 
     form_data.append({ "type": "header","subtype": "h1", "label": "Targets", "access": False})
 
-    form_data.append({ "type": "paragraph", "subtype": "p", "label": "Use this target if no exception below matches. Condition targets are in order and the first (1,2...) matching target will be target value for the channel. If there is no match , default the value is used.", "access": False })
+    form_data.append({ "type": "paragraph", "subtype": "p", "label": "Use this target if no exception below matches. State targets are in order and the first (1,2...) matching target will be target value for the channel. If there is no match , default the value is used.", "access": False })
  
     target_count = 0
     if "targets" in channel_entry:
@@ -1135,18 +1136,18 @@ def create_channel_form(channelIdx):
 
         
     # add one empty target to the bottom 
-    new_target_fields = ui_add_target_section(target_count, {"targetConditions": [], "type" : "down", "value": None})
+    new_target_fields = ui_add_target_section(target_count, {"targetStates": [], "type" : "down", "value": None})
     form_data.extend(new_target_fields)
     form_data.append({"type": "button", "subtype": "submit", "label": "Save", "className": "btn-default btn", "name": "save","access": False, "style": "default"})
     return form_data
 
 
-def create_conditions_form(): 
+def create_states_form(): 
     global powerGuru
     form_data = []
-    form_data.append({ "type": "header","subtype": "h1", "label": "Conditions ", "access": False})
+    form_data.append({ "type": "header","subtype": "h1", "label": "States ", "access": False})
 
-    form_data.append({ "type": "paragraph", "subtype": "p", "label": "Condition code must be unique. You can add one condition at time to the end. To delete a condition enter \"delete\" in the formula column. Do not delete conditions used in channel targets.", "access": False })
+    form_data.append({ "type": "paragraph", "subtype": "p", "label": "State code must be unique. You can add one state at time to the end. To delete a state enter \"delete\" in the formula column. Do not delete states used in channel targets.", "access": False })
  
     variableStr = ""
     for variable_code,variable in powerGuru.get_variables():
@@ -1158,42 +1159,42 @@ def create_conditions_form():
     form_data.append({ "type": "paragraph", "subtype": "p", "label": "Currently available variables (and current value):<ul>{}</ul>".format(variableStr), "access": False })
   
     idx = 0
-    for condition_key, condition in conditions.items(): 
-        new_fields = ui_add_condition_section(idx, condition,condition_key,True)
+    for state_key, state in states.items(): 
+        new_fields = ui_add_state_section(idx, state,state_key,True)
         form_data.extend(new_fields)
         idx += 1
     # empty for adding
-    new_fields = ui_add_condition_section(idx, {"desc":"Enter new condition here","enabledIf": ""},"",False)
+    new_fields = ui_add_state_section(idx, {"desc":"Enter new state here","enabledIf": ""},"",False)
     form_data.extend(new_fields)
 
     form_data.append({"type": "button", "subtype": "submit", "label": "Save", "className": "btn-default btn", "name": "save","access": False, "style": "default"})
     return form_data
 
 
-def ui_add_condition_section(idx, condition, condition_key,existing_entry):
+def ui_add_state_section(idx, state, state_key,existing_entry):
     fields = []
-    enabledIf = condition["enabledIf"]
+    enabledIf = state["enabledIf"]
     if existing_entry:
         code_class = "readOnly"
     else:
         code_class = ""
 
-    fields.append({ "type": "paragraph", "className": "col-lg-12" ,"subtype": "p", "label": "<br><hr>Condition {}".format(idx+1), "access": False })
-    fields.append({"type": "text","required": existing_entry, "label": "code", "className": "form-control code   col-lg-3 "+code_class, "name": "code_{}".format(idx),"access": True,  "subtype": "text","value":condition_key})
+    fields.append({ "type": "paragraph", "className": "col-lg-12" ,"subtype": "p", "label": "<br><hr>State {}".format(idx+1), "access": False })
+    fields.append({"type": "text","required": existing_entry, "label": "code", "className": "form-control code   col-lg-3 "+code_class, "name": "code_{}".format(idx),"access": True,  "subtype": "text","value":state_key})
     fields.append({"type": "text","required": existing_entry, "label": "enabled if (formula)", "className": "form-control formula   col-lg-9", "name": "enabledIf_{}".format(idx),"access": True,  "subtype": "text","value":enabledIf })
-    fields.append({"type": "text","required": existing_entry, "label": "description", "className": "form-control  col-lg-12", "name" : "desc_{}".format(idx),"access": True,  "subtype": "text","value":condition["desc"]}) 
+    fields.append({"type": "text","required": existing_entry, "label": "description", "className": "form-control  col-lg-12", "name" : "desc_{}".format(idx),"access": True,  "subtype": "text","value":state["desc"]}) 
     return fields
 
 
 def ui_add_target_section(index, target):
     fields = []
-    condition_values = []
-    for condition_key,condition in conditions.items(): 
-        #if condition.get("alwaysOn",False): 
-        #    continue# do not include default condition
+    state_values = []
+    for state_key,state in states.items(): 
+        #if state.get("alwaysOn",False): 
+        #    continue# do not include default state
         #channel_entry
-        #if condition_key in target["targetConditions"]
-        condition_values.append({ "value" : "condition_{}".format(condition_key), "label" :  "{} ({})".format(condition["desc"],condition_key), "selected": condition_key in target["targetConditions"] })
+        #if state_key in target["targetStates"]
+        state_values.append({ "value" : "state_{}".format(state_key), "label" :  "{} ({})".format(state["desc"],state_key), "selected": state_key in target["targetStates"] })
     
     print("ui_add_target_section:",target)
     
@@ -1203,10 +1204,10 @@ def ui_add_target_section(index, target):
 
     print("selected:",sensorbelowSelected, upSelected,downSelected)
 
-    fields.append({"type": "paragraph", "subtype": "p", "label": "<hr>{}. conditional target value".format(index+1), "access": False })
-    fields.append({"type": "select","required": False,"description": "One or more conditions for this target","className": "form-control","name": "targetConditions_{}".format(index),"access": False,"multiple": True,"values": condition_values})
+    fields.append({"type": "paragraph", "subtype": "p", "label": "<hr>{}. Conditional target value".format(index+1), "access": False })
+    fields.append({"type": "select","required": False,"description": "One or more states for this target","className": "form-control","name": "targetStates_{}".format(index),"access": False,"multiple": True,"values": state_values})
     fields.append({"type": "radio-group", "required": False, "label": "Target type","inline": False, "name": "targetType_{}".format(index),"access": False,"other": False, "values": [ {"label": "up if sensor below target","value": "sensorbelow","selected":sensorbelowSelected} , { "label": "always up","value": "up","selected": upSelected}  , { "label": "always down","value": "down","selected": downSelected} ]})
-    fields.append({"type": "number","required": False, "label": "target value", "className": "form-control", "name": "target_{}".format(index),"access": False,  "description": "Target value for selected conditions","min": 0, "max": 100,"step": 1, "value": target.get("value",None)})
+    fields.append({"type": "number","required": False, "label": "target value", "className": "form-control", "name": "target_{}".format(index),"access": False,  "description": "Target value for selected states","min": 0, "max": 100,"step": 1, "value": target.get("value",None)})
     
     return fields # thislist.extend(tropical)
 
@@ -1225,12 +1226,12 @@ async def serve_channel_editor(request):
     text_out = text_out.replace("#formData#", formData_str)
     return Response(text=text_out, content_type='text/html');
   
-async def serve_conditions_editor(request):
+async def serve_states_editor(request):
     #todo authetication
-    with open("www/conditions.html", 'r', encoding='utf8') as f:
+    with open("www/states.html", 'r', encoding='utf8') as f:
         text_out = f.read()
 
-    formData_str = json.dumps(create_conditions_form(), indent=None, separators=(",",":"))
+    formData_str = json.dumps(create_states_form(), indent=None, separators=(",",":"))
     text_out = text_out.replace("#formData#", formData_str)
     return Response(text=text_out, content_type='text/html');
   
@@ -1278,7 +1279,7 @@ async def save_editor(request):
     obj = await request.json()
     #print("save_editor")
     pp.pprint(obj)
-    if obj["type"] ==  "conditions":
+    if obj["type"] ==  "states":
         channel_input = list_objects_to_dict(obj["data"])
         print("channel_input")
         pp.pprint(channel_input)
@@ -1296,16 +1297,16 @@ async def save_editor(request):
         #    max_idx = max(max_idx,int(key))
 
         print("max_idx:",max_idx)
-        conditions_new = {}
+        states_new = {}
         for idx in range(max_idx+1):
-            new_condition = {}
-            new_condition["enabledIf"] = channel_input["enabledIf"][str(idx)]
-            new_condition["desc"] = channel_input["desc"][str(idx)]
-            if new_condition["enabledIf"] != "delete":
-                conditions_new[channel_input["code"][str(idx)]] = new_condition
-        pp.pprint(conditions_new)
+            new_state = {}
+            new_state["enabledIf"] = channel_input["enabledIf"][str(idx)]
+            new_state["desc"] = channel_input["desc"][str(idx)]
+            if new_state["enabledIf"] != "delete":
+                states_new[channel_input["code"][str(idx)]] = new_state
+        pp.pprint(states_new)
         print("saving...")
-        save_data_json(conditions_new,s.conditions_filename)
+        save_data_json(states_new,s.states_filename)
 
     elif obj["type"] ==  "channel":
         channel_input = list_objects_to_dict(obj["data"])
@@ -1319,16 +1320,15 @@ async def save_editor(request):
         line_mapping = {"3phase":[1,2,3],"1": [1],"2": [2],"3": [3]}
         channel["lines"] = line_mapping[channel_input["lines"]]
         channel["sensor"] = channel_input["sensor"]
-
         targets_new = []
         
-        target_range = range(min(len(channel_input["target"]),len(channel_input["targetConditions"])))
+        target_range = range(min(len(channel_input["target"]),len(channel_input["targetStates"])))
         for i in target_range:
             targetIdx = str(i)
-            if  not isinstance(channel_input["targetConditions"][targetIdx], list):
-                channel_input["targetConditions"][targetIdx] = [channel_input["targetConditions"][targetIdx]]    
+            if  not isinstance(channel_input["targetStates"][targetIdx], list):
+                channel_input["targetStates"][targetIdx] = [channel_input["targetStates"][targetIdx]]    
             
-            if targetIdx in channel_input["targetConditions"]:  # tähän vielä type?
+            if targetIdx in channel_input["targetStates"]:  # tähän vielä type?
                 targetType = channel_input["targetType"][targetIdx]
                 targetValue = None 
                 if targetType== "sensorbelow":
@@ -1342,13 +1342,12 @@ async def save_editor(request):
                 elif targetType== "down":
                     upIf = "False"
 
-                conditions_cleaned = []
-                for condition in channel_input["targetConditions"][targetIdx]:
-                    conditions_cleaned.append(condition.replace("condition_","")  )
+                states_cleaned = []
+                for state in channel_input["targetStates"][targetIdx]:
+                    states_cleaned.append(state.replace("state_","")  )
 
-                targets_new.append({"targetConditions" : conditions_cleaned,"upIf" : upIf, "type" : targetType, "value": targetValue})
-
-        channel["targets"] =targets_new 
+                targets_new.append({"targetStates" : states_cleaned,"upIf" : upIf, "type" : targetType, "value": targetValue})
+        channel["targets"] = targets_new 
 
         #pp.pprint(channel_input)
         #print("=========>")
@@ -1359,11 +1358,13 @@ async def save_editor(request):
         for n, i in enumerate(channels_list):
             if n == idx:
                 channels_list[n] = channel
-     
-        pp.pprint(channels_list)
+        #pp.pprint(channels_list)
         #nyt save, johonkin reload/restart
         save_data_json(channels_list,s.channels_filename)
-
+        print("##Z2")
+    
+    print("##end of save_editor")
+    return web.Response(text=f"Thanks for your contibution!")
 
 async def serve_status(request):
     global powerGuru
@@ -1382,9 +1383,11 @@ async def serve_status(request):
 async def serve_states(request):
     if not 'states' in request.rel_url.query:
         print("Missing parameter: states")
-        return Response(text="Missing parameter: states", content_type='text/html')
-        
-    states_requested_str = request.rel_url.query['states']
+        #return Response(text="Missing parameter: states", content_type='text/html')
+        states_requested_str = "0"
+    else:
+        states_requested_str = request.rel_url.query['states']
+
     #print("states_requested_str:", states_requested_str)
     states_requested = states_requested_str.split(",")
     #print("states_requested:", states_requested)
@@ -1394,13 +1397,13 @@ async def serve_states(request):
 
 
     states = {"states": [], "ts" : time.time()}
-    if current_conditions:
-        for condition in current_conditions:
-            if condition in states_requested:
-                #print(condition, " is in states_requested:", states_requested)
-                states["states"].append(condition)
+    if current_states:
+        for state in current_states:
+            if state in states_requested or states_requested_str == "0":
+                #print(state, " is in states_requested:", states_requested)
+                states["states"].append(state)
             #else:
-            #    print(condition, " is not in states_requested:", states_requested)
+            #    print(state, " is not in states_requested:", states_requested)
     return Response(text=json.dumps(states), content_type='application/json')
   
 
@@ -1435,7 +1438,7 @@ async def serve_state_series(request):
     aggregate_solar_forecast_timeser(start,end)
 
     # this populates states timeseries
-    check_conditions_timeser(start,end)
+    check_states_timeser(start,end)
 
     
     state_series = powerGuru.get_values_timeser("states",start,end)
@@ -1530,10 +1533,10 @@ def main(argv):
     app.router.add_route('GET', '/admin', serve_admin)
    
 
-   # app.router.add_route('GET', '/(channels\/\dd*|conditions)', serve_editor) 
+   # app.router.add_route('GET', '/(channels\/\dd*|states)', serve_editor) 
 
     app.router.add_route('GET', '/channel/{idx}', serve_channel_editor) 
-    app.router.add_route('GET', '/conditions', serve_conditions_editor) 
+    app.router.add_route('GET', '/states', serve_states_editor) 
     
     app.router.add_route("POST", '/editor', save_editor)
 
@@ -1543,19 +1546,21 @@ def main(argv):
     """
     app.middlewares.append(
     basic_auth_middleware(
-        ('/conditions',),
+        ('/states',),
         {'user': 'password'},
     )
     )
     """
+    
 
     app.middlewares.append(
     basic_auth_middleware(
-        ('/conditions','/channel/','/editor/'),
+        ('/states','/channel/','/editor/'),
         {'powerguru': 'bceeffe128eb5f0f76a7c9f7c3d93fededa859f0f1689e00ff7bff4b93c7ed97206d2844a2e3327fc14edc9e36ce4601a5409bb1a34bda332715acb24b5cbc5e'},
         lambda x: hashlib.sha512(bytes(x, encoding='utf-8')).hexdigest(),
     )
     )
+    
     #generate digest manually: echo -n 'my_new_password'|openssl dgst -sha512
 
 

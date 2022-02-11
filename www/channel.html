@@ -56,7 +56,7 @@
                 dataType: "json",
                 success: function(data){alert(data);},
                 error: function(errMsg) {
-                //    alert(errMsg);
+                    alert(JSON.stringify(errMsg));
                 }
             });
         event.preventDefault();

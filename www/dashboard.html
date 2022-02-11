@@ -62,8 +62,8 @@
             if (result.Wsys) {
                 $("#status").append(`<tr><td>Incoming power</td><td>${Math.round(result.Wsys)} W </td></tr>`);  
             }   
-            if (result.current_conditions) {
-                var stateStr = '<b>' + result.current_conditions.join('</b>, <b>')+'</b>';
+            if (result.current_states) {
+                var stateStr = '<b>' + result.current_states.join('</b>, <b>')+'</b>';
                 $("#status").append("<tr><td>Current states</td><td>" + stateStr + "</td></tr>");       
             }
             /*alert(result);
@@ -73,7 +73,7 @@
             */
            
             $("#status").append("</table>");
-            $("#status").append("<a href=\"/conditions\">Conditions</a><br>");
+            $("#status").append("<a href=\"/states\">States</a><br>");
         
             $("#status").append("<h2>Channels</h2><table>");
             $("#status").append("<tr><td></td><td>channel</td><td></td><td>state info</td></tr>");

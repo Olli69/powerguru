@@ -4,7 +4,7 @@
 TO BE UPDATED...
 Powerguru manages electric loads, for example water heaters or other conrollable devices/energy storages. It can heat up the boilers when then electricity is cheap, for example when you have excess solar power or nightime. It can also optimize water heating using solar energy forecast (http://www.bcdcenergia.fi/ for forecast in Finland). Current version can read RS485/Modbus enabled electric meters and DS18B20 temperatare sensors. It can also fetch Nordpool day-ahead spot prices. 
 
-It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "conditions", which are enabled if all the criterias for the condition match.   Powerguru is tested with Raspberry Pi (2)
+It calculates target temperatures of the heaters once in a minute and switches on/off the heater resistors to reach current target value. Dynamic target values (in Celcius) depends on current "states", which are enabled if all the criterias for the state match.   Powerguru is tested with Raspberry Pi (2)
 
 ## Data architechture
 
@@ -44,7 +44,7 @@ Production data can be updated from solar (PV) inverters with a HTTP-api (e.g. F
 
 Dashboard is a tiny web service showing current state of Powerguru service. You can see:
 - Incoming/outgoing energy
-- Currently enables conditions
+- Currently enabled states
 - Status of the channels
 - Current values of variables, which are used to control statuses and channel targets
 - Update status of different data from Telegraf to Powerguru
@@ -55,15 +55,15 @@ Dashboard is a tiny web service showing current state of Powerguru service. You 
 ## Concept
 TO BE UPDATED...
 1. Main program powerguru.py listens data updates from various sources (sensors, price info, energy forecast etc) via Telegraf service. 
-2. **Recalculate**-process checks, based on the data and given rules, which of defined conditions are enabled at the moment. Multiple conditions can be valid at the same time
-3. Searches targets of each channel in order. E.g. target {"condition" : "netsales", "upIf" : "sensor1<90"} means that if the "netsales" condition is enabled (more solar production than consumption locally) then upIf formula is tested. If sensor1 value is below 90 then the channel will be up (e.g. boiler will be on) until sensor1 value reaches 90
+2. **Recalculate**-process checks, based on the data and given rules, which of defined states are enabled at the moment. Multiple states can be valid at the same time
+3. Searches targets of each channel in order. E.g. target {"state" : "netsales", "upIf" : "sensor1<90"} means that if the "netsales" state is enabled (more solar production than consumption locally) then upIf formula is tested. If sensor1 value is below 90 then the channel will be up (e.g. boiler will be on) until sensor1 value reaches 90
 4. Does actual switching with lineResource.setLoad . This function can also switch of the lines if there is too much load on a phase.
 
 
-### Conditions
-At any time multiple conditions can be effective. Conditions are enabled if "enabledIf" formula value is True. In the formula use PowerGuru variables, e.g. hhmm (current time), mmdd (current date), purchasedEnergyPeriodNet, solar24h (solar forecast for 24 hours, energyPriceSpot (current energy spot price), spotPriceRank24h (current spot price rank related to future hours). Full list of available variables you can see at the dashboard. See more details in the configuration file [settings/conditions.json](settings/conditions.json)
+### States
+At any time multiple states can be effective. States are enabled if "enabledIf" formula value is True. In the formula use PowerGuru variables, e.g. hhmm (current time), mmdd (current date), purchasedEnergyPeriodNet, solar24h (solar forecast for 24 hours, energyPriceSpot (current energy spot price), spotPriceRank24h (current spot price rank related to future hours). Full list of available variables you can see at the dashboard. See more details in the configuration file [settings/states.json](settings/states.json)
 
-Condition parameters are defined in settings/conditions.json
+State parameters are defined in settings/states.json
 
 ### Channels
 Currently boilers/heaters are supported or other heaters. Channel defines rules for switching channel up/down. Targets are tested in order and first matching target is used. [settings/channels.json](settings/channels.json)
@@ -85,7 +85,7 @@ TO BE UPDATED...
 * powerguru.service - systemd service template, edit and install if you like to run powerguru as daemon
 * README.md - this file, will be completed 
 * setting/channels.json  
-* setting/conditions.json  
+* setting/states.json  
 * setting/powerguru.json  
 * setting/sensors.json  
 * setting/telegraf-powerguru.conf

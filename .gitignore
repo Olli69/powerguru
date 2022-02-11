@@ -5,3 +5,4 @@ testgpio.py
 __pycache__
 settings/powerguru.json
 settings/telegraf-powerguru.conf
+.cache/snowflake/ocsp_response_cache.json

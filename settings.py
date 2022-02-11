@@ -30,7 +30,7 @@ def read_settings(settings_filename=""):
   
 powerguru_file_name = "./settings/powerguru.json"
 sensor_settings_filename =  "./settings/sensors.json"
-conditions_filename =  "./settings/conditions.json"
+states_filename =  "./settings/states.json"
 channels_filename =  "./settings/channels.json"
 
 #cache file, are these needed?
