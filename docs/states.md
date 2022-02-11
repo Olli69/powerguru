@@ -11,7 +11,7 @@ Property specific states can depend on local conditions, e.g. local power produc
 - 1001 - buying, more production than purchase in current netting period 
 - 1002 - selling, more production than purchase in current netting period
 
-- 1900 - energy forecast from BCDC Energia http://www.bcdcenergia.fi/
+- 19XX - energy forecast from BCDC Energia http://www.bcdcenergia.fi/
 - 1910 - dark day coming
 - 1920 - sunny day coming
 
@@ -25,12 +25,12 @@ Price area specific states  depend on spot prices on the specific price area. FI
 - 10115 - morning 7-10
 - 10120 - evening 18-20 
 
-- 11000 - spot pricing spaced
+- 11000 - spot pricing
 - 11010 - spot very low < 2 c/kWh
 - 11012 - spot low, <4 c/kWh
 - 11014 - spot moderate < 6 c/kWh
 - 11020 - spot pretty expensive > 10 c/kWh
-- 11022 - spot  expensive > 15 c/kWh
+- 11022 - spot expensive > 15 c/kWh
 - 11022 - spot very expensive >30 c/kWh
 
 - 11100 - best spot price ranks in various windows 
