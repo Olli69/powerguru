@@ -21,7 +21,7 @@
 # Some variables you can use in "enabledIf" formulas:
 #	hhmm - current time, hours and minutes, used in time limiting states, e.g. night hours: (hhmm < '0700' or hhmm >'2200')
 #	mmdd - current date, months and days, used in calendar based states, e.g June, July, August: ('0601' <= mmdd  and  mmdd < '0901')
-#   purchasedEnergyPeriodNet - purchased energy in current period (now hour), e.g. own production exceeding purchase if: (purchasedEnergyPeriodNet<0) 
+#   netEnergyInPeriod - purchased energy in current period (now hour), e.g. own production exceeding purchase if: (netEnergyInPeriod<0) 
 #   solar24h - solar forecast (in kWh) for coming 24 h period (also for 6, 12 and 18 hours), e.g. formula for sunny day:  (solar24h>5) 
 #   energyPriceSpot - current spot price (c/kWh), e.g state for very cheap price: (energyPriceSpot<1.0)
 #   spotPriceRank24h - rank of current spot price within 24 hours window (also for 6, 12 and 18 hours), e.g. 4 most expensive spot prices in 24h window: (spotPriceRank24h>20), e.g. cheapest hour within coming 6 hours: (spotPriceRank6h==1)

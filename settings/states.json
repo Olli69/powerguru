@@ -4,7 +4,7 @@
         "desc": "Matches always"
     },
     "1002": {
-        "enabledIf": "purchasedEnergyPeriodNet<0",
+        "enabledIf": "netEnergyInPeriod<0",
         "desc": "Selling, More production than consumption, nettoperiodi"
     },
     "10101": {
@@ -34,6 +34,42 @@
     "11022": {
         "enabledIf": "energyPriceSpot>10",
         "desc": "Spot price is high"
+    },
+    "11100": {
+        "desc": "best spot price ranks in various windows"
+    },
+    "11110": {
+        "desc": "best spot price ranks in 6 h window"
+    },
+    "11111": {
+        "enabledIf": "spotPriceRank24h==1",
+        "desc": "cheapest 1 h in 6 h"
+    },
+    "11112": {
+        "enabledIf": "spotPriceRank24h>=2",
+        "desc": "cheapest 2 h in 6 h"
+    },
+    "11113": {
+        "enabledIf": "spotPriceRank6h>=3",
+        "desc": "cheapest 3 h in 6 h"
+    }, "11120": {
+        "desc": "best spot price ranks in 12 h window"
+    },
+    "11121": {
+        "enabledIf": "spotPriceRank12h==1",
+        "desc": "cheapest 1 h in 12 h"
+    },
+    "11122": {
+        "enabledIf": "spotPriceRank12h>=2",
+        "desc": "cheapest 2 h in 12 h"
+    },
+    "11123": {
+        "enabledIf": "spotPriceRank12h>=3",
+        "desc": "cheapest 3 h in 12 h"
+    },
+    "11124": {
+        "enabledIf": "spotPriceRank12h>=4",
+        "desc": "cheapest 4 h in 12 h"
     },
     "11141": {
         "enabledIf": "spotPriceRank24h==1",

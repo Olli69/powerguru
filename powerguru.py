@@ -68,7 +68,7 @@ current_states = None
 
 netPreviousTotalEnergyPeriod = -999
 netPreviousTotalEnergy = -1
-purchasedEnergyPeriodNet = 0 
+netEnergyInPeriod = 0 
 netPeriodMeasurementCount = 0
 
 sensor_settings = None
@@ -385,7 +385,7 @@ class PowerGuru:
     def recalculate(self):
         print ('#recalculate')
         #global self
-        global purchasedEnergyPeriodNet, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
+        global netEnergyInPeriod, netPreviousTotalEnergy, netPreviousTotalEnergyPeriod,netPeriodMeasurementCount
         global current_states
         global gridenergy_data, temperature_data, dayahead_list, forecastpv_list
     
@@ -451,14 +451,14 @@ class PowerGuru:
 
             netPreviousTotalEnergyPeriod =  currentNettingPeriod
             netPeriodMeasurementCount = 0 
-    #TODO: tsekkaa miksi purchasedEnergyPeriodNet nollaantuu viivellä periodin vaihtuessa
+    #TODO: tsekkaa miksi netEnergyInPeriod nollaantuu viivellä periodin vaihtuessa
         
-        purchasedEnergyPeriodNet = cumulativeEnergy-netPreviousTotalEnergy
+        netEnergyInPeriod = cumulativeEnergy-netPreviousTotalEnergy
         netPeriodMeasurementCount += 1
         if netPeriodMeasurementCount == 1:
             netPreviousTotalEnergy = cumulativeEnergy
-        self.set_variable("purchasedEnergyPeriodNet" , round(purchasedEnergyPeriodNet,2))
-        print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} purchasedEnergyPeriodNet ".format(cumulativeEnergy,netPreviousTotalEnergy,purchasedEnergyPeriodNet))
+        self.set_variable("netEnergyInPeriod" , round(netEnergyInPeriod,2))
+        print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} netEnergyInPeriod ".format(cumulativeEnergy,netPreviousTotalEnergy,netEnergyInPeriod))
         
         self.setLoad(loadsA[0],loadsA[1],loadsA[2])             
         current_states = check_states()
@@ -1194,7 +1194,8 @@ def ui_add_target_section(index, target):
         #    continue# do not include default state
         #channel_entry
         #if state_key in target["targetStates"]
-        state_values.append({ "value" : "state_{}".format(state_key), "label" :  "{} ({})".format(state["desc"],state_key), "selected": state_key in target["targetStates"] })
+        if "enabledIf" in state:
+            state_values.append({ "value" : "state_{}".format(state_key), "label" :  "{} ({})".format(state["desc"],state_key), "selected": state_key in target["targetStates"] })
     
     print("ui_add_target_section:",target)
     

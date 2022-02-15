@@ -61,7 +61,7 @@ TO BE UPDATED...
 
 
 ### States
-At any time multiple states can be effective. States are enabled if "enabledIf" formula value is True. In the formula use PowerGuru variables, e.g. hhmm (current time), mmdd (current date), purchasedEnergyPeriodNet, solar24h (solar forecast for 24 hours, energyPriceSpot (current energy spot price), spotPriceRank24h (current spot price rank related to future hours). Full list of available variables you can see at the dashboard. See more details in the configuration file [settings/states.json](settings/states.json)
+At any time multiple states can be effective. States are enabled if "enabledIf" formula value is True. In the formula use PowerGuru variables, e.g. hhmm (current time), mmdd (current date), netEnergyInPeriod, solar24h (solar forecast for 24 hours, energyPriceSpot (current energy spot price), spotPriceRank24h (current spot price rank related to future hours). Full list of available variables you can see at the dashboard. See more details in the configuration file [settings/states.json](settings/states.json)
 
 State parameters are defined in settings/states.json
 

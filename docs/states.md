@@ -50,12 +50,12 @@ Price area specific states  depend on spot prices on the specific price area. FI
 - 11145 - cheapest 5 h in 24 h
 - 11146 - cheapest 6 h in 24 h
 - 11150 - 24h window , spot < 4
-- 11151 - cheapest 1 h in 24 h, <4
-- 11152 - cheapest 2 h in 24 h, <4
-- 11153 - cheapest 3 h in 24 h, <4
-- 11154 - cheapest 4 h in 24 h, <4
-- 11155 - cheapest 5 h in 24 h, <4
-- 11156 - cheapest 6 h in 24 h, <4
+- 11151 - cheapest 1 h in 24 h, <4 c/kWh
+- 11152 - cheapest 2 h in 24 h, <4 c/kWh
+- 11153 - cheapest 3 h in 24 h, <4 c/kWh
+- 11154 - cheapest 4 h in 24 h, <4 c/kWh
+- 11155 - cheapest 5 h in 24 h, <4 c/kWh
+- 11156 - cheapest 6 h in 24 h, <4 c/kWh
 
 
 
