@@ -9,7 +9,7 @@
 
 ## Sensor and meter based variables
 
-Numeric value of (temperaturu) sensor where variable name equals sensor name, e.g. sensor1	23.1
+Instance of PowerGuru or PowerGuru lite generates sensor and energy meter values only for connected connected sensors/meters.
 
 | Variable      | Description  |
 | ------------- |------------- |
@@ -22,7 +22,7 @@ Numeric value of (temperaturu) sensor where variable name equals sensor name, e.
 ## Day-ahead price based variables
 Variable values are generated based day-ahead prices from EntsoE transparency platform https://transparency.entsoe.eu/ . Prices are price ares dependant, e.g. Finland is one price area, code FI.
 
-The aay-ahead variables are available on PowerGuru only, not PowerGuru lite.  
+The day-ahead variables are available on PowerGuru only, not PowerGuru lite.  
 
 | Variable      | Description  |
 | ------------- |------------- |
