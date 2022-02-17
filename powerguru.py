@@ -227,7 +227,7 @@ class PowerGuru:
         self.variables_timeser[field_code]["values"][str(time)] = value
 
 
-    def get_values_timeser(self,field_code,time_first=None, time_last=None):
+    def get_values_timeser(self,field_code,time_first=None, time_last=None,states_requested=None):
         if time_first is None:
             time_first = self.get_current_period_start()
         if time_last is None:
@@ -236,10 +236,23 @@ class PowerGuru:
             return {}
 
         return_values = {}
+        #print("states_requested", "     ", states_requested)
         for vkey,variable in self.variables_timeser[field_code]["values"].items():
             if str(time_first) <= vkey and vkey <= str(time_last):
-                return_values[vkey] = variable
+                if states_requested is None:
+                    return_values[vkey] = variable
+                else: #state filter
+                    var_out = []
+                    for var in variable:
+                        if var in states_requested:
+                            var_out.append(var)
+                       
+
+                    return_values[vkey] = var_out
+                    #print(vkey, "     ", var_out)
+ 
         return return_values
+
 
     def get_value_timeser(self,field_code,time,default_value = None):
         if field_code == 'mmdd' or field_code == 'hhmm':
@@ -261,7 +274,6 @@ class PowerGuru:
             else:
                 return default_value
 
- 
 
     def set_variable(self,field_code,value):
         self.variables[field_code] = {"value": value, "ts" : time.time(), "type" : "num"}
@@ -276,6 +288,7 @@ class PowerGuru:
                 return self.variables[field_code]["value"]
         else:
             return default_value
+
 
     def get_setting(self,field_code,default_value = None):
         if field_code in self.settings:
@@ -1380,12 +1393,26 @@ async def serve_status(request):
             while powerGuru.status_propagated:  
                 await asyncio.sleep(1)
     return resp
+#def get_request_array():
 
 async def serve_states(request):
+    states_requested = get_requested_states(request)
+
+    states = {"states": [], "ts" : time.time()}
+    if current_states:
+        for state in current_states:
+            if states_requested is None or state in states_requested:
+                #print(state, " is in states_requested:", states_requested)
+                states["states"].append(state)
+            #else:
+            #    print(state, " is not in states_requested:", states_requested)
+    return Response(text=json.dumps(states), content_type='application/json')
+
+def get_requested_states(request):
     if not 'states' in request.rel_url.query:
         print("Missing parameter: states")
         #return Response(text="Missing parameter: states", content_type='text/html')
-        states_requested_str = "0"
+        return None
     else:
         states_requested_str = request.rel_url.query['states']
 
@@ -1394,18 +1421,9 @@ async def serve_states(request):
     #print("states_requested:", states_requested)
 
     for idx, state in enumerate(states_requested):
-        states_requested[idx] = state.strip()
-
-
-    states = {"states": [], "ts" : time.time()}
-    if current_states:
-        for state in current_states:
-            if state in states_requested or states_requested_str == "0":
-                #print(state, " is in states_requested:", states_requested)
-                states["states"].append(state)
-            #else:
-            #    print(state, " is not in states_requested:", states_requested)
-    return Response(text=json.dumps(states), content_type='application/json')
+        if state.strip().isdigit():
+            states_requested[idx] = int(state.strip())
+    return states_requested
   
 
 async def serve_state_series(request):
@@ -1413,6 +1431,8 @@ async def serve_state_series(request):
     #TODO: cache in the future
     #TODO: parameters, e.g.price area, bcdc location, kai...?
     #TODO: limit queries, eg. 4 for ip-address/24h if no API-key, with API key more but not unlimited
+
+    states_requested = get_requested_states(request)
     if not 'price_area' in request.rel_url.query:
         return Response(text="Missing parameter: price_area", content_type='text/html')
 
@@ -1432,7 +1452,7 @@ async def serve_state_series(request):
         return Response(text="Only price_area {} is supported by this server.".format(powerGuru.get_setting("SpotPriceArea")), content_type='text/html')
 
 
-    #first create time series for variables (excluding sensored)
+    #first create time series for variables (excluding internal)
 
   
     aggregate_dayahead_prices_timeser(start,end)
@@ -1441,8 +1461,8 @@ async def serve_state_series(request):
     # this populates states timeseries
     check_states_timeser(start,end)
 
-    
-    state_series = powerGuru.get_values_timeser("states",start,end)
+    state_series = powerGuru.get_values_timeser("states",start,end,states_requested)
+    state_series["ts"] = time.time()
 
     return Response(text=json.dumps(state_series), content_type='application/json')
     

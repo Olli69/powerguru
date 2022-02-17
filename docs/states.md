@@ -4,16 +4,27 @@ State numbers are between 0 to 65535, where 0 is undefined
 ## Device specific states 1-999
 Local states are not not replicated from device to device.
 Currently in use:
-- 1 - always on
+
+| State      | Description  |
+| ------------- |------------- |
+| 1 | always on  |
+| 100 | hour 00, local time 00:00-00:59 |
+| 101 | hour 01|
+| 102...122 | hour 02... hour |
+| 123 | hour 23, local time|
 
 ## Property specific states 1000-9999
 Property specific states can depend on local conditions, e.g. local power production/consumption and net purchase from grid within netting period, which are sensored or metered locally. Property specific states can be replicated from central instance of the property to local PowerGuru Lite instances.
-- 1001 - buying, more production than purchase in current netting period 
-- 1002 - selling, more production than purchase in current netting period
 
-- 19XX - energy forecast from BCDC Energia http://www.bcdcenergia.fi/
-- 1910 - dark day coming
-- 1920 - sunny day coming
+| State      | Description  |
+| ------------- |------------- |
+| 1001 | buying, more production than purchase in current netting period  |
+| 1002 | selling, more production than purchase in current netting period|
+| 19XX | energy forecast from BCDC Energia http://www.bcdcenergia.fi/, need refinement|
+| 1910 | dark day coming|
+| 1920 | sunny day coming|
+
+
 
 ## Price area specific states 10000-65535
 Price area specific states  depend on spot prices on the specific price area. FI-Finland is one price are, e.g. Norway and Sweden are divided to several price areas. These states can be defined and refined in local PowerGuru instance or states can be loaded from a cloud instance. Day-ahead price data is loaded from EntsoE transparency platform https://transparency.entsoe.eu/. 
