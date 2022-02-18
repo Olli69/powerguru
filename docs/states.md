@@ -12,6 +12,12 @@ Currently in use:
 | 101 | hour 01|
 | 102...122 | hour 02... hour |
 | 123 | hour 23, local time|
+| 130 RFU| päiväsähkö, daytime 07-22:, every day|
+| 131 RFU| yösähkö, 22-07, every day|
+| 141 RFU| kausisähkö talvipäivä, Nov 1- Mar 31 07-22, Mon-Sat|
+| 142 RFU| kausisähkö the, Nov 1- Mar 31 07-22, Mon-Sat|
+
+
 
 ## Property specific states 1000-9999
 Property specific states can depend on local conditions, e.g. local power production/consumption and net purchase from grid within netting period, which are sensored or metered locally. Property specific states can be replicated from central instance of the property to local PowerGuru Lite instances.
