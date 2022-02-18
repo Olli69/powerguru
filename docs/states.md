@@ -14,8 +14,8 @@ Currently in use:
 | 123 | hour 23, local time|
 | 130 RFU| päiväsähkö, daytime 07-22:, every day|
 | 131 RFU| yösähkö, 22-07, every day|
-| 141 RFU| kausisähkö talvipäivä, Nov 1- Mar 31 07-22, Mon-Sat|
-| 142 RFU| kausisähkö the, Nov 1- Mar 31 07-22, Mon-Sat|
+| 140 RFU| kausisähkö talvipäivä, Nov 1- Mar 31 07-22, Mon-Sat|
+| 141 RFU| kausisähkö, other time|
 
 
 
