@@ -10,7 +10,7 @@ It calculates target temperatures of the heaters once in a minute and switches o
 
 **PowerGuru** is a multithreaded Python-program running as a Linux service, see details below. Powerguru has a inbuild web-server (aiohttp) for communication with Telegraf and dashboard. Currently external devices (e.g. boilers) are controlled with Raspberry PI GPIO driven switches, but addional device interfaces, throught e.g. http API:s can be added.
 
-[**PowerGuru Lite**](https://github.com/Olli69/PowerGuru-lite) is a ESP8266 microcontroller based application providing subset of PowerGuru services. It can read Shelly 3EM energy meter, read temperature information from one DS18B20 sensor and control low-voltage switches connected to the microcontroller. Price and forecast information is fetched from PowerGuru-application as preprocessed state sets. In a basic installation a property can have one or more PowerGuru Lite devices which get price and forecact information from a cloud based PowerGuru service. 
+[**PowerGuru Node**](https://github.com/Olli69/PowerGuru-lite) is a ESP8266 microcontroller based application providing subset of PowerGuru services. It can read Shelly 3EM energy meter, read temperature information from one DS18B20 sensor and control low-voltage switches connected to the microcontroller. Price and forecast information is fetched from PowerGuru-application as preprocessed state sets. In a basic installation a property can have one or more PowerGuru Node devices which get price and forecact information from a cloud based PowerGuru service. 
 
 [Telegraf](https://github.com/influxdata/telegraf) is a plugin-driven server agent for collecting & reporting metrics. Telegraf gets metrics from sensors and other data sources through input plugins and forwards it to Powerguru and influxDB analytics database (optional) through output plugins. In addition to standard Telegraf plugins, custom Powerguru Telegraf input plugins (see colors in the diagram) are used. 
 
@@ -25,10 +25,10 @@ Telegraf [outputs.http plugin](https://github.com/influxdata/telegraf/blob/relea
 Metrics from a Modbus enabled energy meter is fetched with [Telegraf Modbus Input Plugin](https://github.com/influxdata/telegraf/blob/master/plugins/inputs/modbus/README.md). The plugin support TCP and serial line configuration. Currently Carlo Gavazzi EM340 RS meter is supported by the [Telegraf config file](settings/telegraf-powerguru.conf).
 
 ### Shelly 3EM energy meter
-Currently information from Shelly EM can be read from PowerGutu Lite via Wifi.
+Currently information from Shelly EM can be read from PowerGutu Node via Wifi.
 
 ### 1-wire temperatore sensors
-Temperature data from 1-wire temperature sensor DS18B20 is supported. For plugin code see [onew_telegraf_pl.py](onew_telegraf_pl.py) . PowerGuru lite support currenly only one connected sensor. 
+Temperature data from 1-wire temperature sensor DS18B20 is supported. For plugin code see [onew_telegraf_pl.py](onew_telegraf_pl.py) . PowerGuru Node support currenly only one connected sensor. 
 
 ### EntsoE
 Day-ahead spot prices are fetched from [EntsoE transparency platform](https://transparency.entsoe.eu/). Next day NordPool prices are available in afternoon. For plugin code see [entsoe_telegraf_pl.py](entsoe_telegraf_pl.py) .

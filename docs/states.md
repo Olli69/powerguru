@@ -20,6 +20,7 @@ Property specific states can depend on local conditions, e.g. local power produc
 | ------------- |------------- |
 | 1001 | buying, more production than purchase in current netting period  |
 | 1002 | selling, more production than purchase in current netting period|
+| 1003 | extra production, more production than defined base load|
 | 19XX | energy forecast from BCDC Energia http://www.bcdcenergia.fi/, need refinement|
 | 1910 | dark day coming|
 | 1920 | sunny day coming|
