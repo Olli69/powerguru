@@ -1024,12 +1024,14 @@ def load_program_config():
 
 
 def load_data_json(file_name):  
+    if not os.path.exists(file_name):
+        return None, None
     try:
         mtime = os.path.getmtime(file_name)
         with open(file_name) as json_file:
             return json.load(json_file),mtime
     except:
-        return None
+        return None, None
 
 
 def save_data_json(field_list,file_name): 
