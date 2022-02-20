@@ -209,9 +209,11 @@ class PowerGuru:
         self.nettingPeriodMinutes = self.get_setting("nettingPeriodMinutes")
         self.dayaheadWindowBlocks = self.get_setting("dayaheadWindowBlocks") 
         self.solarForecastBlocks = self.get_setting("solarForecastBlocks") 
-        self.localChannelsEnabled = self.get_setting("localChannelsEnabled")
+        
         if not GPIOInstalled:
-            self.localChannelsEnabled =false #no RPI package or other system
+            self.localChannelsEnabled =False #no RPI package or other system
+        else:
+            self.localChannelsEnabled = self.get_setting("localChannelsEnabled")
         
         self.lines = [ (1, 0),(2, 0),(3, 0)]
         
