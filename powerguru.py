@@ -43,10 +43,14 @@ from threading import Thread, current_thread
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-#
+# 
 import importlib.util
 GPIOInstalled = True
-spec = importlib.util.find_spec('RPi.GPIO')
+try:
+    spec = importlib.util.find_spec('RPi.GPIO')
+except:
+    spec = None
+
 if spec is None:
     print("GPIO is not installed")
     GPIOInstalled = False
