@@ -43,17 +43,18 @@ from threading import Thread, current_thread
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-
-# need to know, if RPI gpio modules should be imported
-settings = s.read_settings(s.powerguru_file_name) 
-localChannelsEnabled = settings["localChannelsEnabled"]
-
-if localChannelsEnabled:
+#
+import importlib.util
+GPIOInstalled = True
+spec = importlib.util.find_spec('RPi.GPIO')
+if spec is None:
+    print("GPIO is not installed")
+    GPIOInstalled = False
+else:
     import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
     GPIO.setwarnings(False)
     #use GPIO-numbers to refer GPIO pins
     GPIO.setmode(GPIO.BCM)
-
 
 
 import pprint
@@ -205,6 +206,8 @@ class PowerGuru:
         self.dayaheadWindowBlocks = self.get_setting("dayaheadWindowBlocks") 
         self.solarForecastBlocks = self.get_setting("solarForecastBlocks") 
         self.localChannelsEnabled = self.get_setting("localChannelsEnabled")
+        if not GPIOInstalled:
+            self.localChannelsEnabled =false #no RPI package or other system
         
         self.lines = [ (1, 0),(2, 0),(3, 0)]
         
