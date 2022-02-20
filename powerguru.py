@@ -40,20 +40,21 @@ from datetime import datetime
 import socket
 
 from threading import Thread, current_thread
-import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
-
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 
+# need to know, if RPI gpio modules should be imported
+settings = s.read_settings(s.powerguru_file_name) 
+localChannelsEnabled = settings["localChannelsEnabled"]
+
+if localChannelsEnabled:
+    import RPi.GPIO as GPIO # handle Rpi GPIOs for connected to relays
+    GPIO.setwarnings(False)
+    #use GPIO-numbers to refer GPIO pins
+    GPIO.setmode(GPIO.BCM)
 
 
-GPIO.setwarnings(False)
-#use GPIO-numbers to refer GPIO pins
-GPIO.setmode(GPIO.BCM)
-
-
-import settings as s #settings file
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
@@ -977,6 +978,7 @@ def load_program_config():
     global channels_list
     
     powerGuru = PowerGuru(s.powerguru_file_name) 
+
     #TODO: read cached forecast and price info and check validity?
 
      #1-wire
