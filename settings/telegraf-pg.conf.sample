@@ -1,0 +1,152 @@
+# Input and output plugin configuration of Telegraf plugin
+#link to telegraf configuration folder
+#sudo ln -s /home/pi/powerguru/settings/telegraf-powerguru.conf /etc/telegraf/telegraf.d/telegraf-powerguru.conf
+
+
+[[outputs.http]]
+# Output sensor data to Powerguru process (with http server)
+  ## URL is the address to send metrics to
+  url = "http://127.0.0.1:8080/telegraf"
+  data_format = "json"
+ ## Additional HTTP headers
+[outputs.http.headers]
+  #   Should be set manually to "application/json" for json data_format
+  #   Content-Type = "text/plain; charset=utf-8"
+ 	Content-Type = "application/json; charset=utf-8"
+  
+
+   
+[[outputs.influxdb_v2]]
+# Output sensor data to InfluxDB (cloud or local)
+  ## The URLs of the InfluxDB cluster nodes.
+  ##
+  ## Multiple URLs can be specified for a single cluster, only ONE of the
+  ## urls will be written to each interval.
+  ##   ex: urls = ["https://us-west-2-1.aws.cloud2.influxdata.com"]
+  urls = ["https://europe-west1-1.gcp.cloud2.influxdata.com"]
+  json_timestamp_units = "1ns"
+
+  ## Token for authentication.
+  token = "YOUR_API_TOKEN_COMES_HERE"
+
+  ## Organization is the name of the organization you wish to write to; must exist.
+  organization = "YOUR_ORGANIZATION_COMES_HERE"
+
+  ## Destination bucket to write into.
+  bucket = "powerguru"
+
+# InfluxDB V2 Listener Input Plugin
+# forwards updates from Powerguru to influxDB
+[[inputs.influxdb_v2_listener]]
+  ## Address and port to host InfluxDB listener on
+  ## (Double check the port. Could be 9999 if using OSS Beta)
+  service_address = "127.0.0.1:8086"
+
+
+  
+[[inputs.exec]]
+#Read 1-wire sensor values (temperature) with a Python script
+ 	commands = [ "/usr/bin/python3 /home/pi/powerguru/onew_telegraf_pl.py"]
+  	timeout = "30s"
+  	interval = "60s"
+  	data_format = "influx"
+  	precision = "0s"
+  	  
+[[inputs.exec]]
+# Fetch energy spot prices (Entsoe) and solar forecast (BCDC Energia)
+  	commands = [ "/usr/bin/python3 /home/pi/powerguru/bcdc_telegraf_pl.py" ,"/usr/bin/python3 /home/pi/powerguru/entsoe_telegraf_pl.py"]
+  	timeout = "30s"
+	  interval = "4h"
+  	data_format = "influx"
+  	precision = "0s"
+  	 
+
+    
+
+[[inputs.modbus]]
+# Retrieve data from MODBUS slave devices
+  ## Connection Configuration
+  ##
+  ## The plugin supports connections to PLCs via MODBUS/TCP, RTU over TCP, ASCII over TCP or
+  ## via serial line communication in binary (RTU) or readable (ASCII) encoding
+  ##
+  ## Device name
+  name = "gridenergy"
+  interval = "60s"
+
+  ## Slave ID - addresses a MODBUS device on the bus
+  ## Range: 0 - 255 [0 = broadcast; 248 - 255 = reserved]
+  slave_id = 1
+
+  ## Timeout for each request
+  timeout = "15s"
+
+  ## Maximum number of retries and the time to wait between retries
+  ## when a slave-device is busy.
+  # busy_retries = 0
+  # busy_retries_wait = "100ms"
+
+  # TCP - connect via Modbus/TCP
+  #controller = "tcp://localhost:502"
+
+  ## Serial (RS485; RS232)
+  controller = "file:///dev/ttyUSB0"
+  baud_rate = 9600
+  data_bits = 8
+  parity = "N"
+  stop_bits = 1
+
+  ## For Modbus over TCP you can choose between "TCP", "RTUoverTCP" and "ASCIIoverTCP"
+  ## default behaviour is "TCP" if the controller is TCP
+  ## For Serial you can choose between "RTU" and "ASCII"
+  transmission_mode = "RTU"
+
+  ## Measurements
+  ##
+
+
+  ## Analog Variables, Input Registers and Holding Registers
+  ## measurement - the (optional) measurement name, defaults to "modbus"
+  ## name        - the variable name
+  ## byte_order  - the ordering of bytes
+  ##  |---AB, ABCD   - Big Endian
+  ##  |---BA, DCBA   - Little Endian
+  ##  |---BADC       - Mid-Big Endian
+  ##  |---CDAB       - Mid-Little Endian
+  ## data_type  - INT16, UINT16, INT32, UINT32, INT64, UINT64,
+  ##              FLOAT32-IEEE, FLOAT64-IEEE (the IEEE 754 binary representation)
+  ##              FLOAT32, FIXED, UFIXED (fixed-point representation on input)
+  ## scale      - the final numeric variable representation
+  ## address    - variable address
+
+
+  input_registers = [
+    { name = "VL1N",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [0,1]},
+    { name = "VL2",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [2,3]},
+    { name = "VL3",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [4,5]},
+    { name = "AL1",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.001,     address = [12,13]},
+	{ name = "AL2",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.001,     address = [14,15]},
+	{ name = "AL3",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.001,     address = [16,17]},
+  	{ name = "WL1",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [18,19]},
+  	{ name = "WL2",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [20,21]},
+  	{ name = "WL3",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [22,23]},
+  	{ name = "VAL1",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [24,25]},
+  	{ name = "VAL2",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [26,27]},
+  	{ name = "VAL3",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [28,29]},
+  	{ name = "varL1",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [30,31]},
+  	{ name = "varL2",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [32,33]},
+  	{ name = "varL3",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [34,35]},
+ 	{ name = "VLNsys",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [36,37]},
+	{ name = "VLLsys",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [38,39]},
+ 	{ name = "Wsys",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [40,41]},
+ 	{ name = "VAsys",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [42,43]},
+ 	{ name = "kvarsys",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [44,45]},
+	{ name = "PFL1",   byte_order = "AB",   data_type = "FLOAT32",   scale=0.001,     address = [46]},
+	{ name = "PFL2",   byte_order = "AB",   data_type = "FLOAT32",   scale=0.001,     address = [47]}, 
+	{ name = "PFL3",   byte_order = "AB",   data_type = "FLOAT32",   scale=0.001,     address = [48]},
+	{ name = "PFsys",   byte_order = "AB",   data_type = "FLOAT32",   scale=0.001,     address = [49]},
+	{ name = "Hz",   byte_order = "AB",   data_type = "FLOAT32",   scale=0.1,     address = [51]},
+	{ name = "kWhTOT",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [52,53]},
+{ name = "KvarhTOT",   byte_order = "CDAB",   data_type = "FLOAT32",   scale=0.1,     address = [54,55]},
+	]
+
