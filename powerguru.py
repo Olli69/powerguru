@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding: utf-8 
 from multiprocessing.dummy.connection import families
 from pickle import NONE
