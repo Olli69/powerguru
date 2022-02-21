@@ -20,10 +20,7 @@ import re #regular expression
 from glob import glob #Unix style pathname pattern expansion
 
 from datetime import datetime, timezone,date, timedelta
-
-
 #aiohttp
-# sudo -H pip3 install aiohttp aiohttp-sse
 import asyncio
 from aiohttp import web
 from aiohttp.web import Response
