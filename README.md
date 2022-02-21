@@ -78,6 +78,8 @@ Currently only DS18B20 1-wire temperature sensors are supported. Sensors are ide
 ## Installation
 TO BE UPDATED...
 
+
+
 ### Files
 TO BE UPDATED...
 * powerguru.py - main program file. Starts from command line:  python3 powerguru.py or run as systemd service (see powerguru.service file)
@@ -99,6 +101,33 @@ todo: one line, updagrade
 sudo apt-get install libatlas-base-dev python3-pip
 
 sudo -H pip3 install pytz  python-dateutil twisted pymodbus influxdb entsoe-py
+
+
+sudo -H pip3 install aiohttp aiohttp_sse aiohttp_session aiohttp_basicauth_middleware influxdb_client rpi.gpi
+
+
+Telegraf 
+https://docs.influxdata.com/telegraf/v1.21/introduction/installation/ or 
+
+sudo apt update
+sudo apt upgrade
+sudo apt install -y telegraf
+sudo systemctl enable  telegraf
+sudo systemctl start  telegraf
+
+sudo adduser telegraf dialout # to access /dev/USB0 for ModBus
+
+cd powerguru
+#copy own version of Telegraf setup file
+cp settings/telegraf-pg.conf.sample settings/telegraf-pg.conf
+
+now get api token for e.g. influxdata.com  and edit two parameters,  token and organization, in section [[outputs.influxdb_v2]] of settings/telegraf-pg.conf . Edit also absolute paths if directory not /home/pi/powerguru
+nano  settings/telegraf-pg.conf 
+
+sudo ln -s settings/telegraf-pg.conf /etc/telegraf/telegraf.d/telegraf-pg.conf
+
+sudo ln -s "$(pwd)/settings/telegraf-pg.conf" /etc/telegraf/telegraf.d/telegraf-pg.conf
+
 
  
 .... all the other required libraries,

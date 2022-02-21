@@ -6,3 +6,4 @@ __pycache__
 settings/powerguru.json
 settings/telegraf-powerguru.conf
 .cache/snowflake/ocsp_response_cache.json
+settings/telegraf-pg.conf
