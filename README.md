@@ -104,6 +104,7 @@ sudo -H pip3 install pytz  python-dateutil twisted pymodbus influxdb entsoe-py
 
 
 sudo -H pip3 install aiohttp aiohttp_sse aiohttp_session aiohttp_basicauth_middleware influxdb_client rpi.gpi
+sudo -H pip3 install --upgrade entsoe-py telegraf_pyplug
 
 
 Telegraf 
