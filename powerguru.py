@@ -1532,10 +1532,13 @@ async def process_telegraf_post(request):
        
 
 def run_telegraf_once(cmd = "telegraf -once --config-directory /etc/telegraf/telegraf.d", start_delay = 10): 
-    time.sleep(start_delay) # let the main thread start
-    cmd_arr = cmd.split()
-    FNULL = open(os.devnull, 'w') # or  stdout=subprocess.PIPE  or FNULL =open("/tmp/ffmpeg.log", "a+")
-    telegrafProcess = subprocess.Popen(cmd_arr, shell=False,stdout=FNULL, stderr=subprocess.STDOUT)
+    try:
+        time.sleep(start_delay) # let the main thread start
+        cmd_arr = cmd.split()
+        FNULL = open(os.devnull, 'w') # or  stdout=subprocess.PIPE  or FNULL =open("/tmp/ffmpeg.log", "a+")
+        telegrafProcess = subprocess.Popen(cmd_arr, shell=False,stdout=FNULL, stderr=subprocess.STDOUT)
+    except:
+        print("cannot run telegraf once")
      
     
         
