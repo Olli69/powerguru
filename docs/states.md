@@ -25,7 +25,9 @@ Property specific states can depend on local conditions, e.g. local power produc
 | State      | Description  |
 | ------------- |------------- |
 | 1001 | buying, more production than purchase in current netting period  |
-| 1002 | selling, more production than purchase in current netting period|
+| 1005 | selling, more production than purchase in current netting period|
+| 1006 | selling, before solar noon|
+| 1007 | selling, after solar noon|
 | 1010 | extra production, more production than defined base load|
 | 1011 | extra production, before solar noon|
 | 1012 | extra production, after solar noon|
