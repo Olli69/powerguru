@@ -52,7 +52,7 @@ Price area specific states  depend on spot prices on the specific price area. FI
 - 11012 - spot low, <4 c/kWh
 - 11014 - spot moderate < 6 c/kWh
 - 11020 - spot pretty expensive > 10 c/kWh
-- 11022 - spot expensive > 15 c/kWh
+- 11021 - spot expensive > 15 c/kWh
 - 11022 - spot very expensive >30 c/kWh
 
 - 11100 - best spot price ranks in various windows 
