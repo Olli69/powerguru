@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env /usr/bin/python3.9 
 # coding: utf-8 
 from multiprocessing.dummy.connection import families
 from pickle import NONE
@@ -206,8 +206,8 @@ class PowerGuru:
         self.nettingPeriodMinutes = self.get_setting("nettingPeriodMinutes")
         self.dayaheadWindowBlocks = self.get_setting("dayaheadWindowBlocks") 
         self.solarForecastBlocks = self.get_setting("solarForecastBlocks") 
-        
-        if not GPIOInstalled:
+        self.groupServer  = self.get_setting("groupServer",True)
+        if not GPIOInstalled or  self.groupServer:
             self.localChannelsEnabled =False #no RPI package or other system
         else:
             self.localChannelsEnabled = self.get_setting("localChannelsEnabled")
@@ -411,7 +411,7 @@ class PowerGuru:
     
         
         #todo: check data age
-        if gridenergy_data is None or "fields" not in gridenergy_data:
+        if not powerGuru.groupServer and (gridenergy_data is None or "fields" not in gridenergy_data):
             print("No gridenergy_data")
             return False
         
@@ -434,12 +434,18 @@ class PowerGuru:
         # block updates?, should we get it once a hour
         aggregate_solar_forecast()
     
-        loadsA[0] = gridenergy_data["fields"]["AL1"]
-        loadsA[1] = gridenergy_data["fields"]["AL2"]
-        loadsA[2] = gridenergy_data["fields"]["AL3"]
-    
-        importTot = gridenergy_data["fields"]["Wsys"]
-        cumulativeEnergy = gridenergy_data["fields"]["kWhTOT"]
+        if powerGuru.groupServer:
+            loadsA[0]=0
+            loadsA[1]=0
+            loadsA[2]=0
+            importTot = 0
+            cumulativeEnergy = 0
+        else:
+            loadsA[0] = gridenergy_data["fields"]["AL1"]
+            loadsA[1] = gridenergy_data["fields"]["AL2"]
+            loadsA[2] = gridenergy_data["fields"]["AL3"]
+            importTot = gridenergy_data["fields"]["Wsys"]
+            cumulativeEnergy = gridenergy_data["fields"]["kWhTOT"]
              
         price_fields[ "sale"]= (-importTot if importTot<0 else 0.0)
         price_fields[ "purchase"]= (importTot if importTot>0 else 0.0)
@@ -516,7 +522,8 @@ class PowerGuru:
         self.set_status_unpropagated() # latest status not propagated to clients
         # export to influxDB
 
-        reportState(price_fields)
+        if not powerGuru.groupServer:
+            reportState(price_fields)
 
 
 
@@ -1507,7 +1514,6 @@ async def process_telegraf_post(request):
         gridenergy_new = filtered_fields(obj["metrics"],"gridenergy",False)
         #this
         if len(gridenergy_new)==1: # there should be only one entry
-
             gridenergy_data = gridenergy_new[0]
             #TODO: trigger recalculate also after other updates but wait thats all requests in the incoming Telegraf buffer are processed
             powerGuru.recalculate()
@@ -1521,11 +1527,13 @@ async def process_telegraf_post(request):
         if len(dayahead_new)>0:
             dayahead_list = dayahead_new
             aggregate_dayahead_prices()
+            powerGuru.recalculate()
 
         forecastpv_new = filtered_fields(obj["metrics"],"forecastpv",False,s.forecastpv_file_name)
         if len(forecastpv_new)>0:
             forecastpv_list = forecastpv_new
             aggregate_solar_forecast()
+            #powerGuru.recalculate()
 
     return web.Response(text=f"Thanks for your contibution Telegraf!")
 

@@ -31,9 +31,17 @@
         "enabledIf": "hhmm > '1800' and hhmm <'2200'",
         "desc": "varaajat levossa, y\u00f6s\u00e4hk\u00f6\u00e4 odotellessa"
     },
+    "11020": {
+        "enabledIf": "energyPriceSpot>10",
+        "desc": "Spot price over 10"
+    },
+    "11021": {
+        "enabledIf": "energyPriceSpot>15",
+        "desc": "Spot price over 15"
+    },
     "11022": {
         "enabledIf": "energyPriceSpot>10",
-        "desc": "Spot price is high"
+        "desc": "Spot price over 30"
     },
     "11100": {
         "desc": "best spot price ranks in various windows"

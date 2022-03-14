@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from entsoe import EntsoePandasClient
+import traceback #error reporting
 
 import pandas as pd
 
@@ -40,8 +41,15 @@ def getNordPoolSPOTfromEntsoEU():
     dt = datetime.fromtimestamp(int(time.time()/(3600*24))*(3600*24)-3600)
 
     start1 = tz_local.localize(dt)
+  #  start1 = pd.Timestamp(start1,tz=timeZoneLocal)
+    start1 = pd.Timestamp(dt,tz=timeZoneLocal)
     end1 = pd.Timestamp(dt,tz=timeZoneLocal)
     end1 = end1 + timedelta(days=3) # can be a bit longer in the future, you get what you get
+
+    #if type(start) != pd.Timestamp or type(end) != pd.Timestamp:
+    #print ("start1:",type(start1))
+    #print ("end1:",type(end1))
+
 
    
     country_code = SpotPriceArea  
@@ -53,7 +61,9 @@ def getNordPoolSPOTfromEntsoEU():
         ts =client.query_day_ahead_prices(country_code, start=start1,end=end1)
 
     except:
-        print ("Cannot get prices", sys.exc_info())
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
+        print ("Cannot get prices 1", sys.exc_info())
         return
     	
     try:
@@ -70,8 +80,10 @@ def getNordPoolSPOTfromEntsoEU():
             )  
 
     except:
-        pass
-        print ("Cannot get prices", sys.exc_info())
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception( exc_type,exc_value, exc_traceback,limit=5, file=sys.stdout)
+        print ("Cannot get prices 2", sys.exc_info())
+        return
 		
 
 getNordPoolSPOTfromEntsoEU()
