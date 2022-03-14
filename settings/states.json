@@ -40,7 +40,7 @@
         "desc": "Spot price over 15"
     },
     "11022": {
-        "enabledIf": "energyPriceSpot>10",
+        "enabledIf": "energyPriceSpot>30",
         "desc": "Spot price over 30"
     },
     "11100": {
@@ -54,11 +54,11 @@
         "desc": "cheapest 1 h in 6 h"
     },
     "11112": {
-        "enabledIf": "spotPriceRank24h>=2",
+        "enabledIf": "spotPriceRank24h<=2",
         "desc": "cheapest 2 h in 6 h"
     },
     "11113": {
-        "enabledIf": "spotPriceRank6h>=3",
+        "enabledIf": "spotPriceRank6h<=3",
         "desc": "cheapest 3 h in 6 h"
     }, "11120": {
         "desc": "best spot price ranks in 12 h window"
@@ -68,15 +68,15 @@
         "desc": "cheapest 1 h in 12 h"
     },
     "11122": {
-        "enabledIf": "spotPriceRank12h>=2",
+        "enabledIf": "spotPriceRank12h<=2",
         "desc": "cheapest 2 h in 12 h"
     },
     "11123": {
-        "enabledIf": "spotPriceRank12h>=3",
+        "enabledIf": "spotPriceRank12h<=3",
         "desc": "cheapest 3 h in 12 h"
     },
     "11124": {
-        "enabledIf": "spotPriceRank12h>=4",
+        "enabledIf": "spotPriceRank12h<=4",
         "desc": "cheapest 4 h in 12 h"
     },
     "11141": {
