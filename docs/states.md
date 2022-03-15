@@ -40,10 +40,6 @@ Property specific states can depend on local conditions, e.g. local power produc
 ## Price area specific states 10000-65535
 Price area specific states  depend on spot prices on the specific price area. FI-Finland is one price are, e.g. Norway and Sweden are divided to several price areas. These states can be defined and refined in local PowerGuru instance or states can be loaded from a cloud instance. Day-ahead price data is loaded from EntsoE transparency platform https://transparency.entsoe.eu/. 
 
-- 10101 - day 7-22 EET
-- 10102 - night 22-7 EET
-- 10103 - summer night 
-- 10104 - winter night
 - 10115 - morning 7-10
 - 10120 - evening 18-20 
 
