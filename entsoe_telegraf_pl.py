@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env /usr/bin/python3.9
 # coding: utf-8 
 
 #Get day-ahead energy prices from Entsoe API and output stuff in a format readable by Telegraf

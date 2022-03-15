@@ -8,6 +8,7 @@
     "InfluxDBClientToken": "",
     "SpotPriceArea": "FI",
     "bcdcenergiaLocation": "Salo",
+    "bcdcLocationsHandled": ["Salo","Espoo","Tornio"],
     "maxLoadPerPhaseA": 50.0,
     "timeZoneLocal": "Europe/Helsinki",
     "nettingPeriodMinutes": 60,

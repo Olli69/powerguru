@@ -87,12 +87,12 @@
         "enabledIf": "energyPriceSpot<4.0 and spotPriceRank24h<=6",
         "desc": "Spot price is low and now it is one of 6 cheapest hour in 24 h"
     },
-    "12110": {
-        "enabledIf": "solar12h<5 and hhmm > '0400' and hhmm <'0700'",
+    "1910": {
+        "enabledIf": "solar12h<5 and hhmm >= '0000' and hhmm <'0700'",
         "desc": "dark day coming (heat the boilers, there will be no cheap energy today)"
     },
-    "12120": {
-        "enabledIf": "solar12h>5 and hhmm > '0400' and hhmm <'0700'",
+    "1920": {
+        "enabledIf": "solar12h>5 and hhmm >= '0000' and hhmm <'0700'",
         "desc": "sunny 10101 coming (do not overheat the boilers)"
     }
 }

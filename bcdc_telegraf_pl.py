@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env /usr/bin/python3.9
 
 #Get solar energy forecast from www.bcdcenergia.fi and outputs it in format readable by Telegraf
 # Called few times a day (plus in startup) from Telegraf, results are resent to Powerguru and InfluDb
@@ -17,14 +17,17 @@ import pytz
 
 powerguru_settings = s.read_settings(s.powerguru_file_name)
 timeZoneLocal =  powerguru_settings["timeZoneLocal"]
-bcdcenergiaLocation = powerguru_settings["bcdcenergiaLocation"]
+#bcdcenergiaLocation = powerguru_settings["bcdcenergiaLocation"]
+bcdcLocationsHandled = powerguru_settings["bcdcLocationsHandled"]
+
+  
 
 tz_local = pytz.timezone(timeZoneLocal)
 
 
 # report
-def forecast_to_telegraf():
-    query_data_raw = 'action=getChartData&loc=' + bcdcenergiaLocation
+def forecast_to_telegraf(location):
+    query_data_raw = 'action=getChartData&loc=' + location
     r = requests.post('http://www.bcdcenergia.fi/wp-admin/admin-ajax.php',data=query_data_raw,headers={'Content-Type': 'application/x-www-form-urlencoded'})
     fcst_data = json.loads(r.text)
     day_value = 0.0
@@ -50,7 +53,7 @@ def forecast_to_telegraf():
                 print_influxdb_format(
                     measurement=METRIC_NAME,
                     fields=METRIC_FIELDS,
-                    tags = { "location": bcdcenergiaLocation},
+                    tags = { "location": location},
                     nano_timestamp=datetime_tzinfo_to_nano_unix_timestamp(loc_dtday)
                 )         
                 daytotal = 0.0
@@ -61,7 +64,7 @@ def forecast_to_telegraf():
             
             print_influxdb_format(
             measurement=METRIC_NAME, 
-            tags = { "location": bcdcenergiaLocation,  "name" : tag_name},
+            tags = { "location": location,  "name" : tag_name},
             fields={"pvrefvalue":pv_h["value"]+0.0,"pv_forecast":pv_h["value"]*30.0/2.5},
             nano_timestamp=datetime_tzinfo_to_nano_unix_timestamp(loc_dt)
             )
@@ -70,8 +73,10 @@ def forecast_to_telegraf():
     except:
         print ("Cannot write to influx", sys.exc_info())
 		
+for location in bcdcLocationsHandled:
+    forecast_to_telegraf(location)
 
-forecast_to_telegraf() 
+
 
 
 

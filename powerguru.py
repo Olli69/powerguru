@@ -138,17 +138,18 @@ def aggregate_solar_forecast():
 
     if forecastpv_list is not None:
         for fcst_entry in forecastpv_list:
-            for bCodei in powerGuru.solarForecastBlocks:
-                futureHours = bCodei        
-                if fcst_entry["timestamp"] < time.time()+(futureHours*3600):
-                    blockSums[str(bCodei)] += fcst_entry["fields"]["pvrefvalue"]
+            if powerGuru.bcdcenergiaLocation ==fcst_entry["tags"]["location"]:
+                for bCodei in powerGuru.solarForecastBlocks:
+                    futureHours = bCodei        
+                    if fcst_entry["timestamp"] < time.time()+(futureHours*3600):
+                        blockSums[str(bCodei)] += fcst_entry["fields"]["pvrefvalue"]
 
     for sfbCode,sfb in blockSums.items():  
         blockCode = s.solar_forecast_variable_code.format(sfbCode)
         powerGuru.set_variable(blockCode , round(sfb,2))
 
 
-def aggregate_solar_forecast_timeser(start,end):
+def aggregate_solar_forecast_timeser(start,end,location):
     #TESTATTAVA
     global forecastpv_list, powerGuru
 
@@ -159,13 +160,15 @@ def aggregate_solar_forecast_timeser(start,end):
 
         if forecastpv_list is not None:
             for fcst_entry in forecastpv_list:
-                for bCodei in powerGuru.solarForecastBlocks:
-                    futureHours = bCodei        
-                    if fcst_entry["timestamp"] < time+(futureHours*3600):
-                        blockSums[str(bCodei)] += fcst_entry["fields"]["pvrefvalue"]
+                if location == fcst_entry["tags"]["location"]:
+                    for bCodei in powerGuru.solarForecastBlocks:
+                        futureHours = bCodei        
+                        if fcst_entry["timestamp"] < time+(futureHours*3600):
+                            blockSums[str(bCodei)] += fcst_entry["fields"]["pvrefvalue"]
 
         for sfbCode,sfb in blockSums.items():  
             blockCode = s.solar_forecast_variable_code.format(sfbCode)
+           # print(location, blockCode,time,round(sfb,2))
             powerGuru.set_variable_timeser(blockCode,time,round(sfb,2))
 
 
@@ -207,6 +210,10 @@ class PowerGuru:
         self.dayaheadWindowBlocks = self.get_setting("dayaheadWindowBlocks") 
         self.solarForecastBlocks = self.get_setting("solarForecastBlocks") 
         self.groupServer  = self.get_setting("groupServer",True)
+
+        self.bcdcenergiaLocation = self.get_setting("bcdcenergiaLocation")
+        self.bcdcLocationsHandled = self.get_setting("bcdcLocationsHandled")
+        
         if not GPIOInstalled or  self.groupServer:
             self.localChannelsEnabled =False #no RPI package or other system
         else:
@@ -486,7 +493,9 @@ class PowerGuru:
         self.set_variable("netEnergyInPeriod" , round(netEnergyInPeriod,2))
         print(" {} cumulativeEnergy- {} netPreviousTotalEnergy = {} netEnergyInPeriod ".format(cumulativeEnergy,netPreviousTotalEnergy,netEnergyInPeriod))
         
-        self.setLoad(loadsA[0],loadsA[1],loadsA[2])             
+        self.setLoad(loadsA[0],loadsA[1],loadsA[2])      
+
+        #main call       
         current_states = check_states()
 
         # start channels
@@ -570,6 +579,7 @@ class SensorData:
   
 class channelType(Enum): #RFU 
     SWITCH = 0 #default 
+    SWITCH_TO_TARGET = 1 # target
     TESLA_VEHICLE = 101   # more an idea now, not implemented yet, could send start/stop charging commands via Tesla API
     TESLA_POWERWALL = 102  # see previous
 
@@ -1453,9 +1463,13 @@ async def serve_state_series(request):
     if not 'price_area' in request.rel_url.query:
         return Response(text="Missing parameter: price_area", content_type='text/html')
 
+    if not 'location' in request.rel_url.query:
+        return Response(text="Missing parameter: location", content_type='text/html')
+
     #TODO: nämä parametreista
     start = powerGuru.get_current_period_start()
     end = start +3600*24
+    location = request.rel_url.query['location']
 
     # user can limit the time window, in future cached version there could be cache filters
     if 'start' in request.rel_url.query:
@@ -1473,7 +1487,7 @@ async def serve_state_series(request):
 
   
     aggregate_dayahead_prices_timeser(start,end)
-    aggregate_solar_forecast_timeser(start,end)
+    aggregate_solar_forecast_timeser(start,end,location)
 
     # this populates states timeseries
     check_states_timeser(start,end)
@@ -1532,6 +1546,9 @@ async def process_telegraf_post(request):
         forecastpv_new = filtered_fields(obj["metrics"],"forecastpv",False,s.forecastpv_file_name)
         if len(forecastpv_new)>0:
             forecastpv_list = forecastpv_new
+
+            #pp.pprint(forecastpv_list)
+
             aggregate_solar_forecast()
             #powerGuru.recalculate()
 
